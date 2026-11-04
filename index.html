@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Aplikasi Navigasi Saya</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 100vh; width: 100%; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Koordinat Kuala Lumpur
+        var map = L.map('map').setView([3.1390, 101.6869], 13);
+
+        // Guna jubin OpenStreetMap percuma
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // Tambah satu penanda
+        L.marker([3.1390, 101.6869]).addTo(map)
+            .bindPopup('Kuala Lumpur');
+    </script>
+</body>
+</html>
