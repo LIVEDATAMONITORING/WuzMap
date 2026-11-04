@@ -1,566 +1,330 @@
 <!DOCTYPE html>
 <html lang="ms">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>WuzMap - Navigasi Pintar Responsif</title>
-    
-    <!-- Leaflet CSS & FontAwesome -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --bg-glass: rgba(255, 255, 255, 0.96);
-            --bg-card: #ffffff;
-            --text-main: #0f172a;
-            --text-sub: #64748b;
-            --border-color: #e2e8f0;
-            --primary: #0284c7;
-            --primary-dark: #0369a1;
-            --accent: #10b981;
-            --input-bg: #f8fafc;
-        }
-
-        body.dark-mode {
-            --bg-glass: rgba(15, 23, 42, 0.96);
-            --bg-card: #1e293b;
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
-            --border-color: #334155;
-            --primary: #38bdf8;
-            --primary-dark: #0284c7;
-            --input-bg: #0f172a;
-        }
-
-        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; padding: 0; overflow: hidden; background: #0f172a; }
-        #map { height: 100vh; width: 100%; z-index: 1; }
-
-        /* Carian Atas (Z-Index Paling Tinggi) */
-        .top-search-wrapper {
-            position: absolute; top: 12px; left: 12px; right: 12px;
-            z-index: 3000; max-width: 480px; margin: 0 auto;
-        }
-
-        .search-box {
-            display: flex; align-items: center; background: var(--bg-glass);
-            backdrop-filter: blur(16px); padding: 6px 14px; border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15); border: 1px solid var(--border-color);
-        }
-
-        .search-box input {
-            flex: 1; padding: 10px; border: none; background: transparent;
-            font-size: 15px; outline: none; color: var(--text-main); font-weight: 600;
-        }
-
-        /* Dropdown Hasil Carian */
-        .search-results-dropdown {
-            position: absolute; top: calc(100% + 8px); left: 0; right: 0;
-            background: var(--bg-card); border-radius: 16px;
-            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.22);
-            max-height: 280px; overflow-y: auto; z-index: 3001;
-            border: 1px solid var(--border-color); display: none;
-        }
-
-        .search-item {
-            padding: 12px 16px; border-bottom: 1px solid var(--border-color);
-            display: flex; align-items: center; justify-content: space-between;
-            cursor: pointer; transition: background 0.2s;
-        }
-        .search-item:last-child { border-bottom: none; }
-        .search-item:hover, .search-item:active { background: var(--input-bg); }
-
-        .search-item-info { display: flex; flex-direction: column; gap: 2px; max-width: 80%; }
-        .search-item-title { font-size: 14px; font-weight: 700; color: var(--text-main); }
-        .search-item-sub { font-size: 12px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .search-item-badge {
-            background: rgba(2, 132, 199, 0.12); color: var(--primary);
-            font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 20px; white-space: nowrap;
-        }
-
-        /* Bottom Sheet Navigasi yang Boleh Lipat/Sorok */
-        .routing-sheet {
-            position: absolute; bottom: 0; left: 0; right: 0; z-index: 2000;
-            background: var(--bg-glass); backdrop-filter: blur(16px);
-            border-top-left-radius: 24px; border-top-right-radius: 24px;
-            padding: 12px 16px 20px; border-top: 1px solid var(--border-color);
-            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.15);
-            transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            max-width: 480px; margin: 0 auto;
-        }
-
-        /* Mod Dilipat/Minimized */
-        .routing-sheet.minimized {
-            transform: translateY(calc(100% - 48px));
-        }
-
-        .sheet-handle-bar {
-            width: 100%; padding: 4px 0 10px; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-
-        .sheet-handle {
-            width: 42px; height: 5px; background: var(--border-color);
-            border-radius: 10px; transition: background 0.2s;
-        }
-        .sheet-handle-bar:hover .sheet-handle { background: var(--primary); }
-
-        .sheet-minimized-title {
-            font-size: 12px; font-weight: 700; color: var(--primary);
-            margin-top: 4px; display: none;
-        }
-        .routing-sheet.minimized .sheet-minimized-title { display: block; }
-
-        .mode-selector { display: flex; gap: 8px; margin-bottom: 10px; }
-        .mode-btn {
-            flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-card);
-            border-radius: 12px; cursor: pointer; font-size: 13px; color: var(--text-sub);
-            display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600;
-        }
-        .mode-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-
-        .poi-pills { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; }
-        .poi-pill {
-            padding: 6px 12px; background: var(--input-bg); border-radius: 20px; font-size: 12px;
-            white-space: nowrap; cursor: pointer; color: var(--text-main); border: 1px solid var(--border-color); font-weight: 600;
-        }
-        .poi-pill:active { background: var(--primary); color: white; }
-
-        .input-wrapper { position: relative; margin-bottom: 8px; }
-        .input-group { display: flex; align-items: center; background: var(--input-bg); border-radius: 12px; padding: 2px 10px; }
-        .input-group i { font-size: 13px; margin-right: 8px; }
-        .dot-start { color: #10b981; }
-        .dot-end { color: #ef4444; }
-
-        .input-group input {
-            width: 100%; padding: 8px 0; border: none; background: transparent;
-            font-size: 13px; outline: none; color: var(--text-main); font-weight: 600;
-        }
-
-        .btn-primary {
-            width: 100%; padding: 12px; background: var(--primary); color: white;
-            border: none; border-radius: 12px; font-size: 14px; font-weight: 700;
-            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px;
-        }
-
-        .btn-success {
-            width: 100%; padding: 12px; background: var(--accent); color: white;
-            border: none; border-radius: 12px; font-size: 14px; font-weight: 700;
-            cursor: pointer; margin-top: 8px; display: none; align-items: center; justify-content: center; gap: 8px;
-        }
-
-        /* Floating Controls yang Bergerak Mengikut Sheet */
-        .floating-controls {
-            position: absolute; right: 14px; bottom: 330px; z-index: 2000;
-            display: flex; flex-direction: column; gap: 10px;
-            transition: bottom 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .ctrl-btn {
-            background: var(--bg-glass); color: var(--text-main); border: 1px solid var(--border-color);
-            border-radius: 50%; width: 46px; height: 46px; font-size: 17px; cursor: pointer;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.18); display: flex; justify-content: center; align-items: center;
-        }
-        .ctrl-btn:active { transform: scale(0.92); }
-
-        #route-info {
-            display: none; margin-top: 8px; padding: 10px; background: var(--input-bg);
-            border-radius: 12px; text-align: center; color: var(--primary); font-size: 13px; font-weight: 700;
-        }
-        #loader { display: none; text-align: center; margin-top: 8px; color: var(--primary); font-size: 12px; }
-
-        /* Custom Popup Style */
-        .leaflet-popup-content-wrapper { background: var(--bg-card); color: var(--text-main); border-radius: 16px; padding: 4px; }
-        .popup-info { text-align: center; padding: 4px; }
-        .popup-info h4 { margin: 2px 0 6px; font-size: 14px; color: var(--text-main); }
-        .popup-info p { margin: 0 0 10px; font-size: 12px; color: var(--text-sub); }
-        .popup-btn {
-            padding: 8px 14px; background: var(--accent); color: white; border: none;
-            border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; width: 100%;
-        }
-
-        @media (min-width: 640px) {
-            .routing-sheet {
-                top: 75px; left: 16px; bottom: auto; right: auto; width: 360px;
-                border-radius: 20px; border-top: 1px solid var(--border-color);
-            }
-            .routing-sheet.minimized { transform: none; }
-            .floating-controls { bottom: 24px !important; }
-            .sheet-handle-bar { display: none; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#1a73e8">
+<title>WuzMap - Navigasi Pintar Percuma</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root{--bg:#fff;--bg2:#f1f3f4;--tx:#202124;--sub:#5f6368;--bd:#dadce0;--pr:#1a73e8;--ok:#188038;--sh:0px}
+body.dark{--bg:#1f2430;--bg2:#2b3142;--tx:#e8eaed;--sub:#9aa0a6;--bd:#3c4257;--pr:#8ab4f8;--ok:#81c995}
+*{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#222}
+#map{position:absolute;inset:0;z-index:1}
+button{font:inherit;cursor:pointer;border:0;color:var(--tx)}
+.leaflet-control-zoom{display:none}
+.leaflet-popup-content-wrapper{background:var(--bg);color:var(--tx);border-radius:14px}.leaflet-popup-tip{background:var(--bg)}
+#top{position:absolute;z-index:1000;top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;max-width:460px}
+.sb{display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:28px;padding:4px 16px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+.sb input{flex:1;border:0;outline:0;background:none;color:var(--tx);font-size:16px;padding:11px 0;min-width:0}
+.sb i{color:var(--sub)}
+.dd{display:none;position:absolute;left:0;right:0;top:100%;margin-top:6px;background:var(--bg);border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,.3);max-height:50vh;overflow:auto;z-index:20}
+.it{display:flex;gap:12px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--bd);cursor:pointer}
+.it:last-child{border:0}.it:active{background:var(--bg2)}
+.it .ic{width:32px;height:32px;border-radius:50%;background:var(--bg2);display:grid;place-items:center;color:var(--sub);flex:none}
+.it .m{flex:1;min-width:0}.it b{display:block;font-size:14px;color:var(--tx)}
+.it small{display:block;color:var(--sub);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it .km{font-size:12px;color:var(--pr);font-weight:600}
+#chips{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 4px;scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+#chips button{flex:none;background:var(--bg);padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 1px 6px rgba(0,0,0,.3)}
+#chips i{color:var(--pr);margin-right:5px}
+#fab{position:absolute;z-index:1000;right:12px;bottom:calc(var(--sh) + 14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;transition:bottom .2s}
+#fab button{width:46px;height:46px;border-radius:50%;background:var(--bg);font-size:17px;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+#fab button.on{color:var(--pr)}
+#sheet{position:absolute;z-index:1100;left:0;right:0;bottom:0;max-width:480px;margin:0 auto;background:var(--bg);color:var(--tx);border-radius:22px 22px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.3);padding:6px 16px calc(14px + env(safe-area-inset-bottom));max-height:62vh;overflow-y:auto}
+#sheet[hidden]{display:none}
+#hdl{width:40px;height:5px;border-radius:5px;background:var(--bd);margin:2px auto 10px;cursor:pointer}
+#sheet.min #sb{display:none}
+.hd{display:flex;justify-content:space-between;gap:10px;position:relative}
+.t{font-size:19px;font-weight:700}.s{color:var(--sub);font-size:13px;margin-top:2px}
+.s input{border:0;border-bottom:1px dashed var(--bd);background:none;color:var(--pr);font-size:13px;outline:0;width:60%;padding:2px 0}
+.x{background:var(--bg2);width:34px;height:34px;border-radius:50%;flex:none}
+.tabs{display:flex;gap:8px;margin:12px 0}
+.tabs button{flex:1;padding:9px;border-radius:12px;background:var(--bg2);font-weight:600;font-size:13px}
+.tabs button.on{background:var(--pr);color:#fff}
+body.dark .tabs button.on{color:#111}
+.big b{font-size:26px;color:var(--ok)}.big span{color:var(--sub);font-size:14px;margin-left:6px}
+.alts{display:flex;gap:8px;margin:8px 0}
+.alts button{padding:6px 12px;border-radius:16px;background:var(--bg2);font-size:12px;font-weight:600}
+.alts button.on{outline:2px solid var(--pr)}
+.acts{display:flex;gap:8px;margin-top:12px}
+.acts button{flex:1;padding:12px;border-radius:24px;background:var(--bg2);font-weight:700;font-size:14px}
+.acts .pri{background:var(--pr);color:#fff}
+body.dark .acts .pri{color:#111}
+details{margin-top:12px}summary{cursor:pointer;font-weight:600;color:var(--pr);font-size:14px}
+.st{display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--bd);font-size:13px}
+.st i{width:22px;text-align:center;color:var(--pr)}.st small{margin-left:auto;color:var(--sub);white-space:nowrap}
+#banner{position:absolute;z-index:1200;top:calc(8px + env(safe-area-inset-top));left:8px;right:8px;max-width:480px;margin:0 auto;display:none;align-items:center;gap:14px;background:#0b6b3a;color:#fff;border-radius:18px;padding:12px 16px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+#banner i{font-size:38px;width:46px;text-align:center;transition:transform .3s}
+#bd{font-size:28px;font-weight:800;line-height:1}#bn{font-size:15px;opacity:.95;margin-top:3px}
+.nb{display:flex;align-items:center;gap:10px}
+.nb .c{flex:1;text-align:center}.nb .c b{font-size:22px;color:var(--ok);display:block}.nb .c span{font-size:12px;color:var(--sub)}
+.nb button{width:44px;height:44px;border-radius:50%;background:var(--bg2);font-size:16px}
+.nb .ex{background:#d93025;color:#fff}
+.me{width:20px;height:20px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 0 rgba(26,115,232,.6);animation:p 2s infinite}
+@keyframes p{70%{box-shadow:0 0 0 16px rgba(26,115,232,0)}100%{box-shadow:0 0 0 0 rgba(26,115,232,0)}}
+.pin{font-size:30px;color:#ea4335;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+.poi{width:30px;height:30px;border-radius:50%;background:var(--pr);color:#fff;display:grid;place-items:center;border:2px solid #fff;font-size:13px}
+.pb{margin-top:8px;width:100%;padding:8px;border-radius:10px;background:var(--pr);color:#fff;font-weight:700}
+#toast{position:absolute;z-index:3000;left:50%;top:calc(80px + env(safe-area-inset-top));transform:translateX(-50%);background:#323232;color:#fff;padding:10px 16px;border-radius:20px;font-size:13px;display:none;max-width:90%;text-align:center}
+@media(min-width:700px){#sheet{left:16px;right:auto;bottom:16px;width:380px;border-radius:20px}#fab{bottom:24px!important}#top{left:16px;right:auto;width:420px}}
+</style>
 </head>
 <body>
+<div id="map"></div>
 
-    <!-- Carian Utama Atas -->
-    <div class="top-search-wrapper">
-        <div class="search-box">
-            <i class="fas fa-search" style="color: var(--text-sub);"></i>
-            <input type="text" id="globalSearch" placeholder="Cari tempat, e.g. Petronas Rengit..." autocomplete="off">
-            <i class="fas fa-times" id="clearSearch" style="cursor: pointer; color: var(--text-sub); display: none;"></i>
-        </div>
-        <div id="searchResults" class="search-results-dropdown"></div>
-    </div>
+<div id="top">
+  <div class="sb"><i class="fas fa-magnifying-glass"></i><input id="q" placeholder="Cari tempat atau alamat" autocomplete="off"><i class="fas fa-xmark" id="qx" style="display:none;cursor:pointer"></i></div>
+  <div class="dd" id="qd"></div>
+  <div id="chips"></div>
+</div>
 
-    <!-- Peta Canvas -->
-    <div id="map"></div>
+<div id="banner"><i class="fas fa-arrow-up" id="bi"></i><div><div id="bd">–</div><div id="bn">Mengira...</div></div></div>
 
-    <!-- Floating Buttons Sisi Kanan (Bergerak bersama Panel) -->
-    <div class="floating-controls" id="floatingControls">
-        <button class="ctrl-btn" onclick="toggleDarkMode()" title="Mod Gelap/Terang"><i class="fas fa-moon" id="darkModeIcon"></i></button>
-        <button class="ctrl-btn" onclick="toggle3DMode()" title="Pandangan Satelit/3D"><i class="fas fa-layer-group" id="icon3D"></i></button>
-        <button class="ctrl-btn" onclick="locateUser()" title="Lokasi Saya"><i class="fas fa-crosshairs"></i></button>
-    </div>
+<div id="fab">
+  <button onclick="toggleDark()" id="bDark"><i class="fas fa-moon"></i></button>
+  <button onclick="toggleSat()" id="bSat"><i class="fas fa-layer-group"></i></button>
+  <button onclick="locate()" id="bLoc"><i class="fas fa-location-crosshairs"></i></button>
+</div>
 
-    <!-- Bottom Sheet Navigasi -->
-    <div class="routing-sheet" id="routingSheet">
-        <div class="sheet-handle-bar" onclick="toggleSheet()">
-            <div class="sheet-handle"></div>
-            <div class="sheet-minimized-title"><i class="fas fa-chevron-up"></i> Buka Panel Navigasi</div>
-        </div>
+<div id="sheet" hidden><div id="hdl" onclick="this.parentNode.classList.toggle('min')"></div><div id="sb"></div></div>
+<div id="toast"></div>
 
-        <div class="mode-selector">
-            <button class="mode-btn active" onclick="setMode('driving', this)"><i class="fas fa-car"></i> Pandu</button>
-            <button class="mode-btn" onclick="setMode('walking', this)"><i class="fas fa-walking"></i> Jalan</button>
-            <button class="mode-btn" onclick="setMode('bike', this)"><i class="fas fa-bicycle"></i> Basikal</button>
-        </div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
+const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const MODES={driving:['routed-car','fa-car'],bike:['routed-bike','fa-bicycle'],walking:['routed-foot','fa-person-walking']};
+const POIS=[['Petronas / Minyak','fa-gas-pump','[amenity=fuel]'],['Makan','fa-utensils','[amenity~"restaurant|fast_food|cafe"]'],['Hospital','fa-hospital','[amenity~"hospital|clinic"]'],['ATM','fa-money-bill-wave','[amenity=atm]'],['Masjid','fa-mosque','[amenity=place_of_worship][religion=muslim]'],['Parkir','fa-square-parking','[amenity=parking]']];
+const MOD={left:'Belok kiri','slight left':'Sedikit ke kiri','sharp left':'Belok tajam ke kiri',right:'Belok kanan','slight right':'Sedikit ke kanan','sharp right':'Belok tajam ke kanan',straight:'Terus',uturn:'Pusing U'};
+const ROT={straight:0,'slight right':45,right:90,'sharp right':135,uturn:180,'sharp left':-135,left:-90,'slight left':-45};
 
-        <div class="poi-pills">
-            <div class="poi-pill" onclick="quickSearchPOI('Petronas')"><i class="fas fa-gas-pump"></i> Petronas</div>
-            <div class="poi-pill" onclick="quickSearchPOI('Restoran')"><i class="fas fa-utensils"></i> Makanan</div>
-            <div class="poi-pill" onclick="quickSearchPOI('Hospital')"><i class="fas fa-hospital"></i> Hospital</div>
-            <div class="poi-pill" onclick="quickSearchPOI('ATM')"><i class="fas fa-money-bill-wave"></i> ATM</div>
-        </div>
+// ---------- Peta ----------
+const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([3.139,101.687],12);
+const T={
+ light:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}),
+ dark:L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'&copy; OpenStreetMap &copy; CARTO'}),
+ sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,attribution:'Esri'})
+};
+let dark=ld('wm_dark',matchMedia('(prefers-color-scheme:dark)').matches),sat=false,curT;
+function applyTiles(){if(curT)map.removeLayer(curT);curT=sat?T.sat:dark?T.dark:T.light;curT.addTo(map);document.body.classList.toggle('dark',dark);$('#bDark i').className='fas '+(dark?'fa-sun':'fa-moon');$('#bSat').classList.toggle('on',sat)}
+function toggleDark(){dark=!dark;sv('wm_dark',dark);applyTiles()}
+function toggleSat(){sat=!sat;applyTiles()}
+applyTiles();
 
-        <div class="input-wrapper">
-            <div class="input-group">
-                <i class="fas fa-circle dot-start"></i>
-                <input type="text" id="startInput" placeholder="Lokasi Mula..." autocomplete="off">
-            </div>
-            <div id="startSuggestions" class="search-results-dropdown"></div>
-        </div>
+const rg=L.layerGroup().addTo(map),poiG=L.layerGroup().addTo(map);
+let me=null,meM=null,destM=null,dest=null,startPt=null,startName='Lokasi Saya',R={},mode='driving',sel=0,pois=[];
+let navigating=false,follow=true,steps=null,suf=[],idx=0,flags={},navCoords=[],off=0,rerouting=false,muted=false,simT=null,wake=null,total=null;
 
-        <div class="input-wrapper">
-            <div class="input-group">
-                <i class="fas fa-map-marker-alt dot-end"></i>
-                <input type="text" id="endInput" placeholder="Pilih Destinasi..." autocomplete="off">
-            </div>
-            <div id="endSuggestions" class="search-results-dropdown"></div>
-        </div>
+// ---------- Utiliti ----------
+const dm=(a,b)=>{const R=6371000,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lon-a.lon)*r,x=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))};
+const fmtD=m=>m<1000?Math.round(m/10)*10+' m':(m/1000).toFixed(m<10000?1:0)+' km';
+const fmtT=s=>{const m=Math.max(1,Math.round(s/60));return m<60?m+' min':Math.floor(m/60)+' j '+(m%60)+' min'};
+const eta=s=>new Date(Date.now()+s*1000).toLocaleTimeString('ms-MY',{hour:'2-digit',minute:'2-digit'});
+const debounce=(f,d=350)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>f(...a),d)}};
+function toast(t,ms=3500){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',ms)}
+function segDist(p,a,b){const kx=111320*Math.cos(p.lat*Math.PI/180),ky=110540,ax=(a[1]-p.lon)*kx,ay=(a[0]-p.lat)*ky,bx=(b[1]-p.lon)*kx,by=(b[0]-p.lat)*ky,dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;let t=l?-(ax*dx+ay*dy)/l:0;t=Math.max(0,Math.min(1,t));return Math.hypot(ax+t*dx,ay+t*dy)}
+new ResizeObserver(()=>document.documentElement.style.setProperty('--sh',$('#sheet').hidden?'0px':$('#sheet').offsetHeight+'px')).observe($('#sheet'));
+function sheet(h){$('#sheet').hidden=false;$('#sb').innerHTML=h}
 
-        <button class="btn-primary" onclick="calculateRoute()">
-            <i class="fas fa-route"></i> Dapatkan Laluan
-        </button>
+// ---------- Carian ----------
+const saved=()=>ld('wm_saved',[]),recent=()=>ld('wm_recent',[]);
+function showList(box,list,cb){
+  box.innerHTML='';
+  list.forEach(p=>{const d=document.createElement('div');d.className='it';
+    const km=me&&p.lat?`<span class="km">${fmtD(dm(me,p))}</span>`:'';
+    d.innerHTML=`<div class="ic"><i class="fas ${p.tag||'fa-location-dot'}"></i></div><div class="m"><b>${esc(p.name)}</b><small>${esc(p.sub||'')}</small></div>${km}`;
+    d.onclick=()=>{box.style.display='none';cb(p)};box.appendChild(d)});
+  box.style.display=list.length?'block':'none';
+}
+function bindSearch(inp,box,cb,def){
+  const run=debounce(async()=>{
+    const q=inp.value.trim();
+    if(q.length<2){if(def)showList(box,[...saved().map(x=>({...x,tag:'fa-star'})),...recent().map(x=>({...x,tag:'fa-clock-rotate-left'}))].slice(0,8),cb);else box.style.display='none';return}
+    const c=me||{lat:map.getCenter().lat,lon:map.getCenter().lng};
+    try{
+      const r=await fetch(`https://photon.komoot.io/api/?limit=7&q=${encodeURIComponent(q)}&lat=${c.lat}&lon=${c.lon}`);
+      const j=await r.json();
+      showList(box,j.features.map(f=>{const p=f.properties;return{name:p.name||p.street||'Lokasi',sub:[p.street&&p.street!==p.name?p.street:'',p.city||p.district,p.state].filter(Boolean).join(', '),lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0]}}),cb);
+    }catch(e){toast('Carian gagal. Semak internet.')}
+  },300);
+  inp.addEventListener('input',run);inp.addEventListener('focus',()=>{if(inp.id=='si')inp.select();run()});
+}
+bindSearch($('#q'),$('#qd'),p=>{$('#q').value=p.name;addRecent(p);showPlace(p)},true);
+$('#q').addEventListener('input',e=>$('#qx').style.display=e.target.value?'block':'none');
+$('#qx').onclick=()=>{$('#q').value='';$('#qx').style.display='none';clearAll()};
+document.addEventListener('click',e=>{if(!e.target.closest('#top')&&!e.target.closest('.hd'))document.querySelectorAll('.dd').forEach(x=>x.style.display='none')});
+function addRecent(p){const r=recent().filter(x=>x.name!==p.name);r.unshift({name:p.name,sub:p.sub,lat:p.lat,lon:p.lon});sv('wm_recent',r.slice(0,6))}
 
-        <div id="loader"><i class="fas fa-spinner fa-spin"></i> Memproses laluan optimum...</div>
-        <div id="route-info"></div>
+// ---------- POI berdekatan (Overpass, percuma) ----------
+$('#chips').innerHTML=POIS.map((p,i)=>`<button onclick="findPOI(${i})"><i class="fas ${p[1]}"></i>${p[0]}</button>`).join('');
+async function findPOI(i){
+  const c=me||{lat:map.getCenter().lat,lon:map.getCenter().lng};
+  toast('Mencari '+POIS[i][0]+' berdekatan...');
+  const q=`[out:json][timeout:15];nwr(around:3000,${c.lat},${c.lon})${POIS[i][2]};out center 40;`;
+  try{
+    const j=await(await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q))).json();
+    pois=j.elements.map(e=>({name:e.tags.name||e.tags.brand||POIS[i][0],sub:e.tags['addr:street']||'',lat:e.lat||e.center.lat,lon:e.lon||e.center.lon})).sort((a,b)=>dm(c,a)-dm(c,b)).slice(0,25);
+    poiG.clearLayers();
+    if(!pois.length)return toast('Tiada hasil dalam 3 km.');
+    pois.forEach((p,k)=>L.marker([p.lat,p.lon],{icon:L.divIcon({className:'',html:`<div class="poi"><i class="fas ${POIS[i][1]}"></i></div>`,iconSize:[30,30]})}).addTo(poiG)
+      .bindPopup(`<b>${esc(p.name)}</b><br><small>${fmtD(dm(c,p))}</small><button class="pb" onclick="goPOI(${k})">Pergi ke sini</button>`));
+    map.fitBounds(L.latLngBounds(pois.map(p=>[p.lat,p.lon])).extend([c.lat,c.lon]),{padding:[40,40]});
+    toast(pois.length+' tempat dijumpai');
+  }catch(e){toast('Gagal mencari. Cuba lagi sebentar.')}
+}
+function goPOI(k){map.closePopup();showPlace(pois[k]);previewRoute()}
 
-        <button id="startNavBtn" class="btn-success" onclick="startNavigation()">
-            <i class="fas fa-location-arrow"></i> Mula Navigasi Live
-        </button>
-    </div>
+// ---------- Tempat dipilih ----------
+map.on('click',async e=>{
+  if(navigating)return;
+  document.querySelectorAll('.dd').forEach(x=>x.style.display='none');
+  let p={name:'Lokasi dipilih',sub:e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5),lat:e.latlng.lat,lon:e.latlng.lng};
+  showPlace(p);
+  try{const j=await(await fetch(`https://photon.komoot.io/reverse?lat=${p.lat}&lon=${p.lon}`)).json(),f=j.features[0]&&j.features[0].properties;
+    if(f&&dest===p){p.name=f.name||f.street||p.name;p.sub=[f.street&&f.street!==f.name?f.street:'',f.city||f.district,f.state].filter(Boolean).join(', ')||p.sub;showPlace(p,true)}}catch(_){}
+});
+map.on('dragstart',()=>{if(navigating){follow=false;$('#bLoc').classList.remove('on')}});
+function showPlace(p,keep){
+  dest=p;R={};rg.clearLayers();
+  if(destM)map.removeLayer(destM);
+  destM=L.marker([p.lat,p.lon],{icon:L.divIcon({className:'',html:'<i class="fas fa-location-dot pin"></i>',iconSize:[24,30],iconAnchor:[12,30]})}).addTo(map);
+  if(!keep)map.flyTo([p.lat,p.lon],Math.max(map.getZoom(),15),{duration:.8});
+  sheet(`<div class="hd"><div><div class="t">${esc(p.name)}</div><div class="s">${esc(p.sub||'')}${me?' · '+fmtD(dm(me,p)):''}</div></div><button class="x" onclick="clearAll()"><i class="fas fa-xmark"></i></button></div>
+  <div class="acts"><button class="pri" onclick="previewRoute()"><i class="fas fa-route"></i> Laluan</button><button onclick="savePlace()"><i class="fas fa-star"></i> Simpan</button><button onclick="share()"><i class="fas fa-share-nodes"></i> Kongsi</button></div>`);
+}
+function savePlace(){const s=saved().filter(x=>x.name!==dest.name);s.unshift({name:dest.name,sub:dest.sub,lat:dest.lat,lon:dest.lon});sv('wm_saved',s.slice(0,12));toast('Disimpan ke ★ Kegemaran')}
+function share(){const u=`https://www.openstreetmap.org/?mlat=${dest.lat}&mlon=${dest.lon}#map=17/${dest.lat}/${dest.lon}`;
+  if(navigator.share)navigator.share({title:dest.name,url:u}).catch(()=>{});else{navigator.clipboard&&navigator.clipboard.writeText(u);toast('Pautan disalin')}}
+function clearAll(){endNav(true);dest=null;startPt=null;startName='Lokasi Saya';R={};rg.clearLayers();if(destM)map.removeLayer(destM);destM=null;$('#sheet').hidden=true}
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // Inisialisasi Peta (Percuma, tanpa API Key)
-        var map = L.map('map', { zoomControl: false }).setView([3.1390, 101.6869], 13);
-        L.control.zoom({ position: 'topright' }).addTo(map);
+// ---------- Laluan ----------
+async function fetchRoute(m,a,b){
+  const u=`https://routing.openstreetmap.de/${MODES[m][0]}/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
+  const j=await(await fetch(u)).json();if(j.code!=='Ok')throw 0;return j.routes;
+}
+async function previewRoute(){
+  const a=startPt||me;if(!a)return toast('GPS belum sedia. Benarkan lokasi atau isi lokasi mula.');
+  toast('Mengira laluan terbaik...',8000);
+  R={};await Promise.all(Object.keys(MODES).map(async m=>{try{R[m]=await fetchRoute(m,a,dest)}catch(e){}}));
+  $('#toast').style.display='none';
+  if(!R[mode])mode=Object.keys(R)[0];
+  if(!mode){mode='driving';return toast('Laluan tidak dijumpai.')}
+  sel=0;renderPreview();drawRoutes(true);
+}
+function setMode(m){if(!R[m])return;mode=m;sel=0;renderPreview();drawRoutes(true)}
+function pickRoute(i){sel=i;renderPreview();drawRoutes(false)}
+function drawRoutes(fit){
+  rg.clearLayers();const rs=R[mode];if(!rs)return;
+  [...rs.keys()].sort((a,b)=>(a==sel)-(b==sel)).forEach(i=>{
+    const c=rs[i].geometry.coordinates.map(x=>[x[1],x[0]]),on=i==sel;
+    L.polyline(c,{color:'#fff',weight:on?11:8,opacity:.9}).addTo(rg);
+    const l=L.polyline(c,{color:on?'#1a73e8':'#8e9aa8',weight:on?6:5}).addTo(rg);
+    if(!on)l.on('click',e=>{L.DomEvent.stopPropagation(e);pickRoute(i)});
+  });
+  if(fit)map.fitBounds(L.polyline(rs[sel].geometry.coordinates.map(x=>[x[1],x[0]])).getBounds(),{paddingTopLeft:[30,110],paddingBottomRight:[30,$('#sheet').offsetHeight+30]});
+}
+function stepText(s){
+  const m=s.maneuver,t=m.type,mo=m.modifier,n=s.name?' ke '+s.name:'';
+  if(t=='depart')return 'Mula bergerak'+(s.name?' di '+s.name:'');
+  if(t=='arrive')return 'Anda telah tiba di destinasi';
+  if(t=='roundabout'||t=='rotary')return 'Masuk bulatan, keluar ke-'+(m.exit||1)+n;
+  if(t=='fork')return 'Ikut simpang '+(/left/.test(mo)?'kiri':'kanan')+n;
+  if(t=='merge')return 'Bergabung'+n;
+  if(t=='continue'||mo=='straight')return 'Terus'+(s.name?' di '+s.name:'');
+  return (MOD[mo]||'Teruskan')+n;
+}
+const rot=s=>ROT[s.maneuver.modifier]||0;
+function renderPreview(){
+  const r=R[mode][sel],st=r.legs[0].steps;
+  sheet(`<div class="hd"><div><div class="t">${esc(dest.name)}</div><div class="s">dari <input id="si" value="${esc(startName)}" autocomplete="off"></div><div class="dd" id="sg"></div></div><button class="x" onclick="clearAll()"><i class="fas fa-xmark"></i></button></div>
+  <div class="tabs">${Object.keys(MODES).map(m=>`<button class="${m==mode?'on':''}" onclick="setMode('${m}')"><i class="fas ${MODES[m][1]}"></i> ${R[m]?fmtT(R[m][0].duration):'–'}</button>`).join('')}</div>
+  <div class="big"><b>${fmtT(r.duration)}</b><span>${fmtD(r.distance)} · tiba ${eta(r.duration)}</span></div>
+  ${R[mode].length>1?`<div class="alts">${R[mode].map((x,i)=>`<button class="${i==sel?'on':''}" onclick="pickRoute(${i})">Laluan ${i+1} · ${fmtT(x.duration)}</button>`).join('')}</div>`:''}
+  <div class="acts"><button class="pri" onclick="startNav()"><i class="fas fa-location-arrow"></i> Mula</button><button onclick="sim()"><i class="fas fa-play"></i> Simulasi</button></div>
+  <details><summary>Arahan langkah demi langkah (${st.length})</summary>${st.map(s=>`<div class="st"><i class="fas fa-arrow-up" style="transform:rotate(${rot(s)}deg)"></i><span>${esc(stepText(s))}</span><small>${fmtD(s.distance)}</small></div>`).join('')}</details>`);
+  bindSearch($('#si'),$('#sg'),p=>{startPt={lat:p.lat,lon:p.lon};startName=p.name;previewRoute()});
+}
 
-        var lightTile = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
-        var darkTile = L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
-        var satelliteTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Esri Satellite' });
+// ---------- Navigasi Live ----------
+function say(t){if(muted||!window.speechSynthesis)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ms-MY';speechSynthesis.speak(u)}
+async function startNav(){
+  const r=R[mode][sel];steps=r.legs[0].steps;total=r;navCoords=r.geometry.coordinates.map(c=>[c[1],c[0]]);
+  suf=[];let s=0;for(let i=steps.length-1;i>=0;i--){s+=steps[i].distance;suf[i]=s}
+  idx=0;flags={};off=0;navigating=true;follow=true;
+  $('#top').style.display='none';$('#banner').style.display='flex';$('#bLoc').classList.add('on');
+  sheet(`<div class="nb"><div class="c"><b id="nE">--</b><span>Tiba</span></div><div class="c"><b id="nT">--</b><span>Masa</span></div><div class="c"><b id="nD">--</b><span>Baki</span></div><div class="c"><b id="nS">0</b><span>km/j</span></div><button onclick="toggleMute(this)"><i class="fas fa-volume-high"></i></button><button class="ex" onclick="endNav()"><i class="fas fa-xmark"></i></button></div>`);
+  $('#hdl').style.display='none';
+  try{wake=await navigator.wakeLock.request('screen')}catch(e){}
+  if(me)map.setView([me.lat,me.lon],17);
+  say(stepText(steps[0]));navTick();
+}
+function toggleMute(b){muted=!muted;if(muted&&window.speechSynthesis)speechSynthesis.cancel();b.innerHTML=`<i class="fas ${muted?'fa-volume-xmark':'fa-volume-high'}"></i>`}
+function navTick(){
+  if(!navigating||!me)return;
+  let nx=steps[Math.min(idx+1,steps.length-1)],d=dm(me,{lat:nx.maneuver.location[1],lon:nx.maneuver.location[0]});
+  const last=idx+1>=steps.length-1;
+  if(!last&&d<25){idx++;flags={};return navTick()}
+  if(last&&d<30)return arrived();
+  // di luar laluan?
+  let md=1e9;for(let i=0;i<navCoords.length-1;i++){const x=segDist(me,navCoords[i],navCoords[i+1]);if(x<md)md=x}
+  off=md>70?off+1:0;
+  if(off>=3&&!rerouting&&!simT)return reroute();
+  const fast=mode=='driving',t1=fast?300:80,t2=fast?60:25;
+  if(d<t1&&!flags.a){flags.a=1;say(`Dalam ${Math.round(d/50)*50} meter, ${stepText(nx)}`)}
+  if(d<t2&&!flags.b){flags.b=1;say(stepText(nx))}
+  const rem=d+suf[Math.min(idx+1,steps.length-1)],sec=total.duration*rem/total.distance;
+  $('#bi').style.transform=`rotate(${rot(nx)}deg)`;$('#bd').textContent=fmtD(d);$('#bn').textContent=stepText(nx);
+  $('#nE').textContent=eta(sec);$('#nT').textContent=fmtT(sec);$('#nD').textContent=fmtD(rem);
+}
+async function reroute(){
+  rerouting=true;toast('Keluar laluan. Mengira semula...');say('Mengira semula laluan');
+  try{const rs=await fetchRoute(mode,me,dest);R[mode]=rs;sel=0;drawRoutes(false);
+    const r=rs[0];steps=r.legs[0].steps;total=r;navCoords=r.geometry.coordinates.map(c=>[c[1],c[0]]);suf=[];let s=0;for(let i=steps.length-1;i>=0;i--){s+=steps[i].distance;suf[i]=s}idx=0;flags={};off=0}
+  catch(e){toast('Gagal mengira semula.')}
+  rerouting=false;
+}
+function arrived(){say('Anda telah tiba di destinasi');toast('🏁 Anda telah tiba!',6000);endNav(false,true)}
+function endNav(silent,keepDest){
+  navigating=false;clearInterval(simT);simT=null;if(window.speechSynthesis)speechSynthesis.cancel();
+  if(wake){wake.release();wake=null}
+  $('#top').style.display='';$('#banner').style.display='none';$('#hdl').style.display='';$('#bLoc').classList.remove('on');
+  if(!silent&&dest){if(R[mode])renderPreview();else showPlace(dest,true)}
+}
+// Simulasi pemanduan (untuk uji tanpa bergerak)
+function sim(){
+  startNav();const c=navCoords;let i=0,p={lat:c[0][0],lon:c[0][1]};
+  simT=setInterval(()=>{let mv=mode=='driving'?30:8;
+    while(mv>0&&i<c.length-1){const n={lat:c[i+1][0],lon:c[i+1][1]},d=dm(p,n);if(d<=mv){mv-=d;p=n;i++}else{const f=mv/d;p={lat:p.lat+(n.lat-p.lat)*f,lon:p.lon+(n.lon-p.lon)*f};mv=0}}
+    onPos({coords:{latitude:p.lat,longitude:p.lon,speed:mode=='driving'?14:2}});
+    if(i>=c.length-1&&navigating)clearInterval(simT)},700);
+}
 
-        var currentTile = lightTile;
-        currentTile.addTo(map);
-
-        // Global Variables
-        var startMarker, endMarker, viewMarker, routeLine;
-        var startCoords = null, endCoords = null, currentPos = null;
-        var currentMode = 'driving', isDarkMode = false, is3D = false;
-
-        // Auto Detect GPS User Awal
-        locateUser(false);
-
-        // Ketinggian Dinamik Butang GPS
-        function adjustFloatingControls() {
-            if (window.innerWidth >= 640) return;
-            var sheet = document.getElementById('routingSheet');
-            var controls = document.getElementById('floatingControls');
-            
-            if (sheet.classList.contains('minimized')) {
-                controls.style.bottom = '65px';
-            } else {
-                var sheetHeight = sheet.offsetHeight;
-                controls.style.bottom = (sheetHeight + 15) + 'px';
-            }
-        }
-
-        // Toggle Lipat / Buka Panel
-        function toggleSheet() {
-            var sheet = document.getElementById('routingSheet');
-            sheet.classList.toggle('minimized');
-            adjustFloatingControls();
-        }
-
-        // Kira Jarak Haversine (km)
-        function getDistanceKm(lat1, lon1, lat2, lon2) {
-            var R = 6371;
-            var dLat = (lat2 - lat1) * Math.PI / 180;
-            var dLon = (lon2 - lon1) * Math.PI / 180;
-            var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                    Math.sin(dLon/2) * Math.sin(dLon/2);
-            return (R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)))).toFixed(1);
-        }
-
-        function debounce(func, delay = 300) {
-            let timeout;
-            return (...args) => {
-                clearTimeout(timeout);
-                timeout = setTimeout(() => { func.apply(this, args); }, delay);
-            };
-        }
-
-        // Carian Photon API
-        async function fetchSmartLocations(query, containerId, onSelect) {
-            if (query.length < 2) {
-                document.getElementById(containerId).style.display = 'none';
-                return;
-            }
-
-            var apiUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=6`;
-            if (currentPos) {
-                apiUrl += `&lat=${currentPos.lat}&lon=${currentPos.lon}`;
-            }
-
-            try {
-                var res = await fetch(apiUrl);
-                var data = await res.json();
-                var container = document.getElementById(containerId);
-                container.innerHTML = '';
-
-                if (data.features.length > 0) {
-                    data.features.forEach(feat => {
-                        var props = feat.properties;
-                        var name = props.name || props.street || 'Lokasi';
-                        var locality = [props.city, props.state, props.country].filter(Boolean).join(', ');
-                        var lon = feat.geometry.coordinates[0];
-                        var lat = feat.geometry.coordinates[1];
-
-                        var distBadge = '';
-                        if (currentPos) {
-                            var km = getDistanceKm(currentPos.lat, currentPos.lon, lat, lon);
-                            distBadge = `<span class="search-item-badge">${km} km</span>`;
-                        }
-
-                        var item = document.createElement('div');
-                        item.className = 'search-item';
-                        item.innerHTML = `
-                            <div class="search-item-info">
-                                <div class="search-item-title">${name}</div>
-                                <div class="search-item-sub">${locality || 'Malaysia'}</div>
-                            </div>
-                            ${distBadge}
-                        `;
-                        item.onclick = () => {
-                            onSelect(name, lat, lon);
-                            container.style.display = 'none';
-                        };
-                        container.appendChild(item);
-                    });
-                    container.style.display = 'block';
-                }
-            } catch (err) { console.error(err); }
-        }
-
-        // Carian Utama
-        var globalInput = document.getElementById('globalSearch');
-        globalInput.addEventListener('input', debounce((e) => {
-            var val = e.target.value;
-            document.getElementById('clearSearch').style.display = val ? 'block' : 'none';
-            fetchSmartLocations(val, 'searchResults', (name, lat, lon) => {
-                globalInput.value = name;
-                focusLocationOnMap(name, lat, lon);
-            });
-        }));
-
-        document.getElementById('clearSearch').onclick = () => {
-            globalInput.value = '';
-            document.getElementById('clearSearch').style.display = 'none';
-            document.getElementById('searchResults').style.display = 'none';
-            if (viewMarker) map.removeLayer(viewMarker);
-        };
-
-        function focusLocationOnMap(name, lat, lon) {
-            if (viewMarker) map.removeLayer(viewMarker);
-            map.flyTo([lat, lon], 16, { animate: true, duration: 1.2 });
-
-            var distText = currentPos 
-                ? `Jarak dari anda: <b>${getDistanceKm(currentPos.lat, currentPos.lon, lat, lon)} km</b>`
-                : "Aktifkan GPS untuk info jarak";
-
-            var popupContent = `
-                <div class="popup-info">
-                    <h4>${name}</h4>
-                    <p>${distText}</p>
-                    <button class="popup-btn" onclick="directNavigateTo('${name.replace(/'/g, "\\'")}', ${lat}, ${lon})">
-                        <i class="fas fa-directions"></i> Pandu Ke Sini
-                    </button>
-                </div>
-            `;
-            viewMarker = L.marker([lat, lon]).addTo(map).bindPopup(popupContent).openPopup();
-        }
-
-        function directNavigateTo(name, lat, lon) {
-            endCoords = { lat, lon };
-            document.getElementById('endInput').value = name;
-            
-            if (currentPos && !startCoords) {
-                startCoords = { lat: currentPos.lat, lon: currentPos.lon };
-                document.getElementById('startInput').value = "Lokasi Saya (GPS)";
-            }
-            
-            // Buka semula panel jika dilipat semasa klik laluan
-            document.getElementById('routingSheet').classList.remove('minimized');
-            adjustFloatingControls();
-            calculateRoute();
-        }
-
-        function quickSearchPOI(keyword) {
-            globalInput.value = keyword;
-            document.getElementById('clearSearch').style.display = 'block';
-            fetchSmartLocations(keyword, 'searchResults', (name, lat, lon) => {
-                globalInput.value = name;
-                focusLocationOnMap(name, lat, lon);
-            });
-        }
-
-        document.getElementById('startInput').addEventListener('input', debounce((e) => {
-            fetchSmartLocations(e.target.value, 'startSuggestions', (name, lat, lon) => {
-                document.getElementById('startInput').value = name;
-                startCoords = { lat, lon };
-            });
-        }));
-
-        document.getElementById('endInput').addEventListener('input', debounce((e) => {
-            fetchSmartLocations(e.target.value, 'endSuggestions', (name, lat, lon) => {
-                document.getElementById('endInput').value = name;
-                endCoords = { lat, lon };
-            });
-        }));
-
-        function setMode(mode, el) {
-            currentMode = mode;
-            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-            el.classList.add('active');
-            if (startCoords && endCoords) calculateRoute();
-        }
-
-        async function calculateRoute() {
-            if (!startCoords || !endCoords) {
-                alert("Sila tetapkan Lokasi Mula dan Destinasi.");
-                return;
-            }
-
-            document.getElementById('loader').style.display = 'block';
-            document.getElementById('route-info').style.display = 'none';
-
-            if (startMarker) map.removeLayer(startMarker);
-            if (endMarker) map.removeLayer(endMarker);
-            if (routeLine) map.removeLayer(routeLine);
-
-            startMarker = L.marker([startCoords.lat, startCoords.lon]).addTo(map).bindPopup("Mula");
-            endMarker = L.marker([endCoords.lat, endCoords.lon]).addTo(map).bindPopup("Destinasi");
-
-            var osrmUrl = `https://router.project-osrm.org/route/v1/${currentMode}/${startCoords.lon},${startCoords.lat};${endCoords.lon},${endCoords.lat}?overview=full&geometries=geojson`;
-
-            try {
-                var res = await fetch(osrmUrl);
-                var data = await res.json();
-
-                if (data.code === 'Ok' && data.routes.length > 0) {
-                    var route = data.routes[0];
-                    var dist = (route.distance / 1000).toFixed(1);
-                    var dur = Math.round(route.duration / 60);
-
-                    document.getElementById('route-info').innerHTML = `Jarak: <b>${dist} km</b> | Masa: <b>~${dur} minit</b>`;
-                    document.getElementById('route-info').style.display = 'block';
-                    document.getElementById('startNavBtn').style.display = 'flex';
-
-                    var coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
-                    routeLine = L.polyline(coords, { color: 'var(--primary)', weight: 6, opacity: 0.9 }).addTo(map);
-                    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
-                    
-                    adjustFloatingControls();
-                }
-            } catch (err) {
-                alert("Gagal mengira laluan.");
-            } finally {
-                document.getElementById('loader').style.display = 'none';
-            }
-        }
-
-        function startNavigation() {
-            if (!navigator.geolocation) return;
-            alert("Mod Navigasi Aktif! Peta akan mengikuti lokasi pergerakan anda.");
-            navigator.geolocation.watchPosition((pos) => {
-                var lat = pos.coords.latitude;
-                var lon = pos.coords.longitude;
-                currentPos = { lat, lon };
-                if (startMarker) startMarker.setLatLng([lat, lon]);
-                map.flyTo([lat, lon], 17);
-            }, (err) => console.error(err), { enableHighAccuracy: true });
-        }
-
-        function locateUser(fly = true) {
-            if (!navigator.geolocation) return;
-            navigator.geolocation.getCurrentPosition((pos) => {
-                var lat = pos.coords.latitude;
-                var lon = pos.coords.longitude;
-                currentPos = { lat, lon };
-                if (!startCoords) {
-                    startCoords = { lat, lon };
-                    document.getElementById('startInput').value = "Lokasi Saya (GPS)";
-                }
-                if (fly) {
-                    map.flyTo([lat, lon], 15);
-                    L.marker([lat, lon]).addTo(map).bindPopup("Anda di sini").openPopup();
-                }
-            });
-        }
-
-        function toggleDarkMode() {
-            isDarkMode = !isDarkMode;
-            document.body.classList.toggle('dark-mode', isDarkMode);
-            document.getElementById('darkModeIcon').className = isDarkMode ? 'fas fa-sun' : 'fas fa-moon';
-            if (!is3D) {
-                map.removeLayer(currentTile);
-                currentTile = isDarkMode ? darkTile : lightTile;
-                currentTile.addTo(map);
-            }
-        }
-
-        function toggle3DMode() {
-            is3D = !is3D;
-            document.getElementById('icon3D').style.color = is3D ? '#10b981' : 'inherit';
-            map.removeLayer(currentTile);
-            currentTile = is3D ? satelliteTile : (isDarkMode ? darkTile : lightTile);
-            currentTile.addTo(map);
-        }
-
-        // Laraskan kedudukan butang pada kali pertama dibuka
-        window.addEventListener('load', adjustFloatingControls);
-        window.addEventListener('resize', adjustFloatingControls);
-
-        // Tutup senarai cadangan jika tekan luar
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.top-search-wrapper') && !e.target.closest('.input-wrapper')) {
-                document.querySelectorAll('.search-results-dropdown').forEach(el => el.style.display = 'none');
-            }
-        });
-    </script>
+// ---------- GPS ----------
+function onPos(pos){
+  me={lat:pos.coords.latitude,lon:pos.coords.longitude};
+  if(!meM)meM=L.marker([me.lat,me.lon],{icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[20,20]}),zIndexOffset:1000}).addTo(map);
+  else meM.setLatLng([me.lat,me.lon]);
+  if(navigating){
+    const sp=pos.coords.speed||0;$('#nS').textContent=Math.round(sp*3.6);
+    navTick();
+    if(follow)map.setView([me.lat,me.lon],sp>20?16:sp>8?17:18,{animate:true});
+  }
+}
+function locate(){
+  if(navigating&&!follow){follow=true;$('#bLoc').classList.add('on');if(me)map.setView([me.lat,me.lon],17);return}
+  if(me)map.flyTo([me.lat,me.lon],16);else toast('Menunggu GPS... pastikan akses lokasi dibenarkan.');
+}
+if(navigator.geolocation){
+  let first=true;
+  navigator.geolocation.watchPosition(p=>{if(simT)return;onPos(p);if(first){first=false;map.flyTo([me.lat,me.lon],15)}},
+    e=>toast('GPS tidak tersedia. Benarkan akses lokasi dalam pelayar.'),{enableHighAccuracy:true,maximumAge:2000});
+}
+</script>
 </body>
 </html>
