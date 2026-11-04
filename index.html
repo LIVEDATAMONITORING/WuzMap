@@ -4,25 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#1a73e8">
-<title>WuzMap - Navigasi 3D & POI Pintar</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<title>WuzMap - Navigasi Pintar Percuma</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
 :root{--bg:#fff;--bg2:#f1f3f4;--tx:#202124;--sub:#5f6368;--bd:#dadce0;--pr:#1a73e8;--ok:#188038;--sh:0px}
 body.dark{--bg:#1f2430;--bg2:#2b3142;--tx:#e8eaed;--sub:#9aa0a6;--bd:#3c4257;--pr:#8ab4f8;--ok:#81c995}
 *{box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;height:100%;overflow:hidden;background:#222;perspective:1000px}
-
-/* Perspective Container untuk Pandangan 3D Pemandu */
-#map-viewport{position:absolute;inset:0;z-index:1;transform-origin:center 70%;transition:transform 0.8s cubic-bezier(0.25, 1, 0.5, 1)}
-body.driver-3d #map-viewport{transform:rotateX(55deg) scale(1.15);box-shadow:0 20px 50px rgba(0,0,0,0.5)}
-
+html,body{margin:0;height:100%;overflow:hidden;background:#222}
 #map{position:absolute;inset:0;z-index:1}
+body.dark:not(.sat) .maplibregl-canvas{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.8)}
 button{font:inherit;cursor:pointer;border:0;color:var(--tx)}
-.leaflet-control-zoom{display:none}
-body.dark:not(.sat) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.8)}
-.leaflet-popup-content-wrapper{background:var(--bg);color:var(--tx);border-radius:14px}.leaflet-popup-tip{background:var(--bg)}
-
 #top{position:absolute;z-index:1000;top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;max-width:460px}
 .sb{display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:28px;padding:4px 16px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
 .sb input{flex:1;border:0;outline:0;background:none;color:var(--tx);font-size:16px;padding:11px 0;min-width:0}
@@ -34,16 +26,13 @@ body.dark:not(.sat) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brigh
 .it .m{flex:1;min-width:0}.it b{display:block;font-size:14px;color:var(--tx)}
 .it small{display:block;color:var(--sub);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .it .km{font-size:12px;color:var(--pr);font-weight:600}
-
 #chips{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 4px;scrollbar-width:none}
 #chips::-webkit-scrollbar{display:none}
 #chips button{flex:none;background:var(--bg);padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 1px 6px rgba(0,0,0,.3)}
 #chips i{color:var(--pr);margin-right:5px}
-
 #fab{position:absolute;z-index:1000;right:12px;bottom:calc(var(--sh) + 14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px;transition:bottom .2s}
 #fab button{width:46px;height:46px;border-radius:50%;background:var(--bg);font-size:17px;box-shadow:0 2px 8px rgba(0,0,0,.35)}
 #fab button.on{color:var(--pr)}
-
 #sheet{position:absolute;z-index:1100;left:0;right:0;bottom:0;max-width:480px;margin:0 auto;background:var(--bg);color:var(--tx);border-radius:22px 22px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.3);padding:6px 16px calc(14px + env(safe-area-inset-bottom));max-height:62vh;overflow-y:auto}
 #sheet[hidden]{display:none}
 #hdl{width:40px;height:5px;border-radius:5px;background:var(--bd);margin:2px auto 10px;cursor:pointer}
@@ -55,49 +44,42 @@ body.dark:not(.sat) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brigh
 .tabs{display:flex;gap:8px;margin:12px 0}
 .tabs button{flex:1;padding:9px;border-radius:12px;background:var(--bg2);font-weight:600;font-size:13px}
 .tabs button.on{background:var(--pr);color:#fff}
-body.dark .tabs button.on{color:#111}
+body.dark .tabs button.on,body.dark .acts .pri{color:#111}
 .big b{font-size:26px;color:var(--ok)}.big span{color:var(--sub);font-size:14px;margin-left:6px}
-.alts{display:flex;gap:8px;margin:8px 0}
-.alts button{padding:6px 12px;border-radius:16px;background:var(--bg2);font-size:12px;font-weight:600}
+.alts{display:flex;gap:8px;margin:8px 0;overflow-x:auto;padding:2px}
+.alts button{flex:none;padding:7px 12px;border-radius:16px;background:var(--bg2);font-size:12px;font-weight:600}
 .alts button.on{outline:2px solid var(--pr)}
+.opt{display:flex;gap:16px;font-size:13px;margin:6px 0;color:var(--tx)}.opt label{display:flex;gap:6px;align-items:center}
 .acts{display:flex;gap:8px;margin-top:12px}
 .acts button{flex:1;padding:12px;border-radius:24px;background:var(--bg2);font-weight:700;font-size:14px}
 .acts .pri{background:var(--pr);color:#fff}
-body.dark .acts .pri{color:#111}
 details{margin-top:12px}summary{cursor:pointer;font-weight:600;color:var(--pr);font-size:14px}
 .st{display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--bd);font-size:13px}
 .st i{width:22px;text-align:center;color:var(--pr)}.st small{margin-left:auto;color:var(--sub);white-space:nowrap}
-
-/* Panel Navigasi Live Top Banner & Indikator Lorong */
 #banner{position:absolute;z-index:1200;top:calc(8px + env(safe-area-inset-top));left:8px;right:8px;max-width:480px;margin:0 auto;display:none;flex-direction:column;background:#0b6b3a;color:#fff;border-radius:18px;padding:12px 16px;box-shadow:0 4px 16px rgba(0,0,0,.4)}
-.banner-main{display:flex;align-items:center;gap:14px}
-#banner i{font-size:38px;width:46px;text-align:center;transition:transform .3s}
+.br{display:flex;align-items:center;gap:14px;width:100%}
+.br>i{font-size:38px;width:46px;text-align:center;transition:transform .3s}
 #bd{font-size:28px;font-weight:800;line-height:1}#bn{font-size:15px;opacity:.95;margin-top:3px}
-
-/* Lane Guidance Indicator Component */
-#lane-box{display:none;align-items:center;gap:6px;background:rgba(0,0,0,0.25);border-radius:10px;padding:6px 10px;margin-top:8px;font-size:13px;font-weight:700}
-.lane-icon{width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,0.2);display:grid;place-items:center;font-size:14px;color:#fff}
-.lane-icon.active{background:#81c995;color:#0b6b3a;box-shadow:0 0 8px #81c995}
-
-.nb{display:flex;align-items:center;gap:10px}
-.nb .c{flex:1;text-align:center}.nb .c b{font-size:22px;color:var(--ok);display:block}.nb .c span{font-size:12px;color:var(--sub)}
-.nb button{width:44px;height:44px;border-radius:50%;background:var(--bg2);font-size:16px}
+#lanes{display:none;gap:4px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.ln{min-width:34px;height:40px;border:2px solid rgba(255,255,255,.35);border-radius:6px;display:flex;align-items:center;justify-content:center;gap:1px;color:rgba(255,255,255,.45);font-size:15px}
+.ln.ok{background:#fff;color:#0b6b3a;border-color:#fff}
+#lh{display:none;text-align:center;font-size:12px;font-weight:700;margin-top:6px}
+.nb{display:flex;align-items:center;gap:8px}
+.nb .c{flex:1;text-align:center}.nb .c b{font-size:20px;color:var(--ok);display:block}.nb .c span{font-size:12px;color:var(--sub)}
+.nb button{width:42px;height:42px;border-radius:50%;background:var(--bg2);font-size:16px;flex:none}
 .nb .ex{background:#d93025;color:#fff}
-
-.me{width:22px;height:22px;border-radius:50%;background:#1a73e8;border:3px solid #fff;box-shadow:0 0 0 0 rgba(26,115,232,.6);animation:p 2s infinite}
-@keyframes p{70%{box-shadow:0 0 0 16px rgba(26,115,232,0)}100%{box-shadow:0 0 0 0 rgba(26,115,232,0)}}
-.pin{font-size:30px;color:#ea4335;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
-.poi{width:32px;height:32px;border-radius:50%;background:var(--pr);color:#fff;display:grid;place-items:center;border:2px solid #fff;font-size:14px;box-shadow:0 2px 6px rgba(0,0,0,.3)}
-.pb{margin-top:8px;width:100%;padding:8px;border-radius:10px;background:var(--pr);color:#fff;font-weight:700;border:none}
-#toast{position:absolute;z-index:3000;left:50%;top:calc(80px + env(safe-area-inset-top));transform:translateX(-50%);background:#323232;color:#fff;padding:10px 16px;border-radius:20px;font-size:13px;display:none;max-width:90%;text-align:center}
+.sl{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:12px;color:var(--sub)}.sl input{flex:1}.sl b{color:var(--tx);min-width:62px;text-align:right}
+.me{width:20px;height:20px;border-radius:50%;background:#1a73e8;border:3px solid #fff;animation:p 2s infinite}
+@keyframes p{0%{box-shadow:0 0 0 0 rgba(26,115,232,.6)}70%{box-shadow:0 0 0 16px rgba(26,115,232,0)}100%{box-shadow:0 0 0 0 rgba(26,115,232,0)}}
+.me.nav{width:0;height:0;border-radius:0;background:none;border:14px solid transparent;border-bottom:32px solid #1a73e8;border-top:0;animation:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
+.pin{font-size:32px;color:#ea4335;filter:drop-shadow(0 2px 2px rgba(0,0,0,.4))}
+.poi{width:30px;height:30px;border-radius:50%;background:var(--pr);color:#fff;display:grid;place-items:center;border:2px solid #fff;font-size:13px;cursor:pointer}
+#toast{position:absolute;z-index:3000;left:50%;top:calc(110px + env(safe-area-inset-top));transform:translateX(-50%);background:#323232;color:#fff;padding:10px 16px;border-radius:20px;font-size:13px;display:none;max-width:90%;text-align:center}
 @media(min-width:700px){#sheet{left:16px;right:auto;bottom:16px;width:380px;border-radius:20px}#fab{bottom:24px!important}#top{left:16px;right:auto;width:420px}}
 </style>
 </head>
 <body>
-
-<div id="map-viewport">
-  <div id="map"></div>
-</div>
+<div id="map"></div>
 
 <div id="top">
   <div class="sb"><i class="fas fa-magnifying-glass"></i><input id="q" placeholder="Cari tempat atau alamat" autocomplete="off"><i class="fas fa-xmark" id="qx" style="display:none;cursor:pointer"></i></div>
@@ -106,74 +88,58 @@ details{margin-top:12px}summary{cursor:pointer;font-weight:600;color:var(--pr);f
 </div>
 
 <div id="banner">
-  <div class="banner-main">
-    <i class="fas fa-arrow-up" id="bi"></i>
-    <div>
-      <div id="bd">–</div>
-      <div id="bn">Mengira...</div>
-    </div>
-  </div>
-  <!-- Indikator Lorong / Lane Guidance -->
-  <div id="lane-box">
-    <span style="opacity:0.8;font-size:11px;margin-right:4px;">LORONG:</span>
-    <div id="lane-list" style="display:flex;gap:4px;"></div>
-  </div>
+  <div class="br"><i class="fas fa-arrow-up" id="bi"></i><div><div id="bd">–</div><div id="bn">Mengira...</div></div></div>
+  <div id="lanes"></div><div id="lh"></div>
 </div>
 
 <div id="fab">
+  <button onclick="toggleTilt()" id="bTilt" style="display:none"><b style="font-size:13px">3D</b></button>
   <button onclick="toggleDark()" id="bDark"><i class="fas fa-moon"></i></button>
   <button onclick="toggleSat()" id="bSat"><i class="fas fa-layer-group"></i></button>
-  <button onclick="toggleDriver3D()" id="b3D" title="Tukar Pandangan 3D Pemandu"><i class="fas fa-cube"></i></button>
   <button onclick="locate()" id="bLoc"><i class="fas fa-location-crosshairs"></i></button>
 </div>
 
 <div id="sheet" hidden><div id="hdl" onclick="this.parentNode.classList.toggle('min')"></div><div id="sb"></div></div>
 <div id="toast"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ld=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}};
 const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-
 const MODES={driving:['routed-car','fa-car'],bike:['routed-bike','fa-bicycle'],walking:['routed-foot','fa-person-walking']};
-const POIS=[
-  ['Petronas / Minyak','fa-gas-pump','[amenity=fuel]','Petronas fuel station'],
-  ['Makan','fa-utensils','[amenity~"restaurant|fast_food|cafe"]','Restoran kedai makan'],
-  ['Hospital','fa-hospital','[amenity~"hospital|clinic"]','Hospital klinik'],
-  ['ATM','fa-money-bill-wave','[amenity=atm]','ATM bank'],
-  ['Masjid','fa-mosque','[amenity=place_of_worship][religion=muslim]','Masjid surau'],
-  ['Parkir','fa-square-parking','[amenity=parking]','Parking lot']
-];
+// nama, ikon, tag OSM, kata kunci carian alternatif
+const POIS=[['Stesen Minyak','fa-gas-pump','[amenity=fuel]','Petronas'],['Kedai Makan','fa-utensils','[amenity~"restaurant|fast_food|cafe|food_court"]','restoran'],['Hospital','fa-hospital','[amenity~"hospital|clinic"]','hospital'],['ATM','fa-money-bill-wave','[amenity=atm]','ATM'],['Surau / Masjid','fa-mosque','[amenity=place_of_worship][religion=muslim]','masjid'],['Parkir','fa-square-parking','[amenity=parking]','parking']];
 const MOD={left:'Belok kiri','slight left':'Sedikit ke kiri','sharp left':'Belok tajam ke kiri',right:'Belok kanan','slight right':'Sedikit ke kanan','sharp right':'Belok tajam ke kanan',straight:'Terus',uturn:'Pusing U'};
 const ROT={straight:0,'slight right':45,right:90,'sharp right':135,uturn:180,'sharp left':-135,left:-90,'slight left':-45};
 
-// ---------- Peta ----------
-const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([3.139,101.687],12);
-const T={
- light:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}),
- sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,attribution:'Esri'})
-};
-let dark=ld('wm_dark',matchMedia('(prefers-color-scheme:dark)').matches),sat=false,curT;
-function applyTiles(){if(curT)map.removeLayer(curT);curT=sat?T.sat:T.light;document.body.classList.toggle('sat',sat);curT.addTo(map);document.body.classList.toggle('dark',dark);$('#bDark i').className='fas '+(dark?'fa-sun':'fa-moon');$('#bSat').classList.toggle('on',sat)}
+// ---------- Peta (MapLibre: boleh condong & berputar) ----------
+const map=new maplibregl.Map({container:'map',center:[101.687,3.139],zoom:11,maxPitch:75,attributionControl:{compact:true},
+ style:{version:8,sources:{
+  osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'&copy; OpenStreetMap'},
+  sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:18,attribution:'Esri'}},
+  layers:[{id:'osm',type:'raster',source:'osm'},{id:'sat',type:'raster',source:'sat',layout:{visibility:'none'}}]}});
+const EMPTY={type:'FeatureCollection',features:[]};
+map.on('load',()=>{
+  map.addSource('rt',{type:'geojson',data:EMPTY});
+  map.addLayer({id:'rt-case',type:'line',source:'rt',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#fff','line-width':['case',['==',['get','sel'],1],11,8]}});
+  map.addLayer({id:'rt-line',type:'line',source:'rt',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':['case',['==',['get','sel'],1],'#1a73e8','#8e9aa8'],'line-width':['case',['==',['get','sel'],1],6,5]}});
+});
+let dark=ld('wm_dark',matchMedia('(prefers-color-scheme:dark)').matches),sat=false;
+function applyTiles(){document.body.classList.toggle('dark',dark);document.body.classList.toggle('sat',sat);$('#bDark i').className='fas '+(dark?'fa-sun':'fa-moon');$('#bSat').classList.toggle('on',sat);if(map.getLayer('sat'))map.setLayoutProperty('sat','visibility',sat?'visible':'none')}
 function toggleDark(){dark=!dark;sv('wm_dark',dark);applyTiles()}
 function toggleSat(){sat=!sat;applyTiles()}
-applyTiles();
+applyTiles();map.on('load',applyTiles);
 
-let driver3D=false;
-function toggleDriver3D(forceState){
-  driver3D=forceState!==undefined?forceState:!driver3D;
-  document.body.classList.toggle('driver-3d',driver3D);
-  $('#b3D').classList.toggle('on',driver3D);
-}
-
-const rg=L.layerGroup().addTo(map),poiG=L.layerGroup().addTo(map);
-let me=null,meM=null,destM=null,dest=null,startPt=null,startName='Lokasi Saya',R={},mode='driving',sel=0,pois=[];
-let navigating=false,follow=true,steps=null,suf=[],idx=0,flags={},navCoords=[],off=0,rerouting=false,muted=false,simT=null,wake=null,total=null;
+const mk=(html,cls,lon,lat,anchor)=>{const e=document.createElement('div');e.className=cls;e.innerHTML=html;const m=new maplibregl.Marker({element:e,anchor:anchor||'center'}).setLngLat([lon,lat]).addTo(map);m.el=e;return m};
+let me=null,meM=null,destM=null,dest=null,startPt=null,startName='Lokasi Saya',R={},mode='driving',sel=0,pois=[],poiM=[];
+let navigating=false,follow=true,tilt=true,steps=null,suf=[],idx=0,flags={},navCoords=[],off=0,rerouting=false,muted=false,simT=null,simKmh=60,wake=null,total=null,hdg=0,lastP=null,laneHint='';
+let opt=ld('wm_opt',{toll:false,motorway:false});
 
 // ---------- Utiliti ----------
 const dm=(a,b)=>{const R=6371000,r=Math.PI/180,dl=(b.lat-a.lat)*r,dn=(b.lon-a.lon)*r,x=Math.sin(dl/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dn/2)**2;return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))};
+const brg=(a,b)=>{const r=Math.PI/180,y=Math.sin((b.lon-a.lon)*r)*Math.cos(b.lat*r),x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lon-a.lon)*r);return(Math.atan2(y,x)/r+360)%360};
 const fmtD=m=>m<1000?Math.round(m/10)*10+' m':(m/1000).toFixed(m<10000?1:0)+' km';
 const fmtT=s=>{const m=Math.max(1,Math.round(s/60));return m<60?m+' min':Math.floor(m/60)+' j '+(m%60)+' min'};
 const eta=s=>new Date(Date.now()+s*1000).toLocaleTimeString('ms-MY',{hour:'2-digit',minute:'2-digit'});
@@ -182,6 +148,16 @@ function toast(t,ms=3500){const e=$('#toast');e.textContent=t;e.style.display='b
 function segDist(p,a,b){const kx=111320*Math.cos(p.lat*Math.PI/180),ky=110540,ax=(a[1]-p.lon)*kx,ay=(a[0]-p.lat)*ky,bx=(b[1]-p.lon)*kx,by=(b[0]-p.lat)*ky,dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy;let t=l?-(ax*dx+ay*dy)/l:0;t=Math.max(0,Math.min(1,t));return Math.hypot(ax+t*dx,ay+t*dy)}
 new ResizeObserver(()=>document.documentElement.style.setProperty('--sh',$('#sheet').hidden?'0px':$('#sheet').offsetHeight+'px')).observe($('#sheet'));
 function sheet(h){$('#sheet').hidden=false;$('#sb').innerHTML=h}
+function fitTo(coords){if(!coords.length)return;const b=coords.reduce((b,c)=>b.extend(c),new maplibregl.LngLatBounds(coords[0],coords[0]));
+  map.fitBounds(b,{padding:{top:130,left:30,right:30,bottom:($('#sheet').hidden?0:$('#sheet').offsetHeight)+50},pitch:0,bearing:0,duration:800,maxZoom:17})}
+
+// ---------- Bunyi: chime + suara ----------
+let AC;
+function beep(freqs,dur=.14){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state=='suspended')AC.resume();const t0=AC.currentTime;
+  freqs.forEach((f,i)=>{const o=AC.createOscillator(),g=AC.createGain(),t=t0+i*dur;o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.5,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+dur+.06);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+dur+.1)})}catch(e){}}
+const CH={turn:[880,1175],near:[1175,1175,880],arrive:[784,988,1175,1568],reroute:[523,392,523],start:[660,880,1320]};
+function speak(t){if(!window.speechSynthesis)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ms-MY';const v=speechSynthesis.getVoices().find(v=>/^(ms|id)/i.test(v.lang));if(v)u.voice=v;u.rate=.95;speechSynthesis.speak(u)}
+function alertSay(text,type){if(muted)return;beep(CH[type]||CH.turn);setTimeout(()=>speak(text),type=='arrive'?900:type=='near'?650:500)}
 
 // ---------- Carian ----------
 const saved=()=>ld('wm_saved',[]),recent=()=>ld('wm_recent',[]);
@@ -193,16 +169,15 @@ function showList(box,list,cb){
     d.onclick=()=>{box.style.display='none';cb(p)};box.appendChild(d)});
   box.style.display=list.length?'block':'none';
 }
+const ctr=()=>me||{lat:map.getCenter().lat,lon:map.getCenter().lng};
+const photonP=f=>{const p=f.properties;return{name:p.name||p.street||'Lokasi',sub:[p.street&&p.street!==p.name?p.street:'',p.city||p.district,p.state].filter(Boolean).join(', '),lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0]}};
 function bindSearch(inp,box,cb,def){
   const run=debounce(async()=>{
     const q=inp.value.trim();
     if(q.length<2){if(def)showList(box,[...saved().map(x=>({...x,tag:'fa-star'})),...recent().map(x=>({...x,tag:'fa-clock-rotate-left'}))].slice(0,8),cb);else box.style.display='none';return}
-    const c=me||{lat:map.getCenter().lat,lon:map.getCenter().lng};
-    try{
-      const r=await fetch(`https://photon.komoot.io/api/?limit=7&q=${encodeURIComponent(q)}&lat=${c.lat}&lon=${c.lon}`);
-      const j=await r.json();
-      showList(box,j.features.map(f=>{const p=f.properties;return{name:p.name||p.street||'Lokasi',sub:[p.street&&p.street!==p.name?p.street:'',p.city||p.district,p.state].filter(Boolean).join(', '),lat:f.geometry.coordinates[1],lon:f.geometry.coordinates[0]}}),cb);
-    }catch(e){toast('Carian gagal. Semak internet.')}
+    const c=ctr();
+    try{const j=await(await fetch(`https://photon.komoot.io/api/?limit=7&q=${encodeURIComponent(q)}&lat=${c.lat}&lon=${c.lon}`)).json();showList(box,j.features.map(photonP),cb)}
+    catch(e){toast('Carian gagal. Semak internet.')}
   },300);
   inp.addEventListener('input',run);inp.addEventListener('focus',()=>{if(inp.id=='si')inp.select();run()});
 }
@@ -212,109 +187,88 @@ $('#qx').onclick=()=>{$('#q').value='';$('#qx').style.display='none';clearAll()}
 document.addEventListener('click',e=>{if(!e.target.closest('#top')&&!e.target.closest('.hd'))document.querySelectorAll('.dd').forEach(x=>x.style.display='none')});
 function addRecent(p){const r=recent().filter(x=>x.name!==p.name);r.unshift({name:p.name,sub:p.sub,lat:p.lat,lon:p.lon});sv('wm_recent',r.slice(0,6))}
 
-// ---------- POI Berdekatan (Proksimiti Overpass + Photon Fallback) ----------
+// ---------- Tempat berdekatan (Overpass + pelayan sandaran + Photon sandaran) ----------
 $('#chips').innerHTML=POIS.map((p,i)=>`<button onclick="findPOI(${i})"><i class="fas ${p[1]}"></i>${p[0]}</button>`).join('');
-
-async function findPOI(i){
-  const c=me||{lat:map.getCenter().lat,lon:map.getCenter().lng};
-  toast('Mencari '+POIS[i][0]+' berdekatan...');
-  poiG.clearLayers();
-  pois=[];
-
-  // Percubaan 1: Overpass API
-  const q=`[out:json][timeout:10];nwr(around:3500,${c.lat},${c.lon})${POIS[i][2]};out center 30;`;
-  try{
-    const res=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q));
-    const j=await res.json();
-    if(j.elements&&j.elements.length>0){
-      pois=j.elements.map(e=>({
-        name:e.tags.name||e.tags.brand||POIS[i][0],
-        sub:e.tags['addr:street']||e.tags['addr:suburb']||'Berdekatan',
-        lat:e.lat||e.center.lat,
-        lon:e.lon||e.center.lon
-      }));
-    }
-  }catch(e){/* Overpass failed, use fallback below */}
-
-  // Percubaan 2: Photon Fallback jika Overpass tiada hasil / error
-  if(!pois.length){
-    try{
-      const r=await fetch(`https://photon.komoot.io/api/?limit=15&q=${encodeURIComponent(POIS[i][3])}&lat=${c.lat}&lon=${c.lon}`);
-      const j=await r.json();
-      pois=j.features.map(f=>({
-        name:f.properties.name||f.properties.street||POIS[i][0],
-        sub:[f.properties.street,f.properties.city||f.properties.district].filter(Boolean).join(', ')||'Berdekatan',
-        lat:f.geometry.coordinates[1],
-        lon:f.geometry.coordinates[0]
-      }));
-    }catch(err){}
-  }
-
-  pois=pois.sort((a,b)=>dm(c,a)-dm(c,b)).slice(0,25);
-  if(!pois.length)return toast('Tiada '+POIS[i][0]+' dijumpai di kawasan ini.');
-
-  pois.forEach((p,k)=>{
-    L.marker([p.lat,p.lon],{
-      icon:L.divIcon({className:'',html:`<div class="poi"><i class="fas ${POIS[i][1]}"></i></div>`,iconSize:[32,32]})
-    }).addTo(poiG)
-      .bindPopup(`<b>${esc(p.name)}</b><br><small>${esc(p.sub)} · ${fmtD(dm(c,p))}</small><button class="pb" onclick="goPOI(${k})"><i class="fas fa-route"></i> Pergi ke sini</button>`);
-  });
-
-  map.fitBounds(L.latLngBounds(pois.map(p=>[p.lat,p.lon])).extend([c.lat,c.lon]),{padding:[50,50]});
-  toast(pois.length+' tempat dijumpai berdekatan.');
+const OV=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
+async function overpass(q){
+  for(const u of OV){try{const c=new AbortController(),t=setTimeout(()=>c.abort(),12000);
+    const r=await fetch(u,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:c.signal});clearTimeout(t);
+    if(r.ok)return await r.json()}catch(e){}}
+  throw 0;
 }
+async function findPOI(i){
+  const c=ctr();let list=[];toast('Mencari '+POIS[i][0]+' berdekatan...',9000);
+  try{
+    for(const rad of [3000,8000]){
+      const j=await overpass(`[out:json][timeout:20];nwr(around:${rad},${c.lat},${c.lon})${POIS[i][2]};out center 80;`);
+      list=j.elements.filter(e=>(e.lat||e.center)).map(e=>{const t=e.tags||{};return{name:t.name||t.brand||t.operator||POIS[i][0],sub:[t['addr:street'],t['addr:city']].filter(Boolean).join(', '),lat:e.lat||e.center.lat,lon:e.lon||e.center.lon}});
+      if(list.length)break;
+    }
+  }catch(e){
+    try{toast('Pelayan utama sibuk, guna carian alternatif...',6000);
+      const j=await(await fetch(`https://photon.komoot.io/api/?limit=20&q=${encodeURIComponent(POIS[i][3])}&lat=${c.lat}&lon=${c.lon}`)).json();
+      list=j.features.map(photonP).filter(p=>dm(c,p)<20000)}catch(_){return toast('Gagal mencari. Semak internet dan cuba lagi.')}
+  }
+  list.forEach(p=>p.d=dm(c,p));list.sort((a,b)=>a.d-b.d);pois=list.slice(0,20);
+  poiM.forEach(m=>m.remove());poiM=[];
+  if(!pois.length)return toast('Tiada '+POIS[i][0]+' dijumpai berdekatan.');
+  $('#toast').style.display='none';
+  pois.forEach((p,k)=>{const m=mk(`<i class="fas ${POIS[i][1]}"></i>`,'poi',p.lon,p.lat);m.el.onclick=ev=>{ev.stopPropagation();showPlace(pois[k])};poiM.push(m)});
+  sheet(`<div class="hd"><div class="t">${POIS[i][0]} berdekatan</div><button class="x" onclick="clearAll()"><i class="fas fa-xmark"></i></button></div><div style="margin-top:8px">${pois.map((p,k)=>`<div class="it" onclick="goPOI(${k})"><div class="ic"><i class="fas ${POIS[i][1]}"></i></div><div class="m"><b>${esc(p.name)}</b><small>${esc(p.sub||'')}</small></div><span class="km">${fmtD(p.d)}</span></div>`).join('')}</div>`);
+  fitTo([[c.lon,c.lat],...pois.slice(0,8).map(p=>[p.lon,p.lat])]);
+}
+function goPOI(k){showPlace(pois[k]);previewRoute()}
 
-function goPOI(k){map.closePopup();showPlace(pois[k]);previewRoute()}
-
-// ---------- Tempat Dipilih ----------
+// ---------- Tempat dipilih ----------
 map.on('click',async e=>{
   if(navigating)return;
   document.querySelectorAll('.dd').forEach(x=>x.style.display='none');
-  let p={name:'Lokasi dipilih',sub:e.latlng.lat.toFixed(5)+', '+e.latlng.lng.toFixed(5),lat:e.latlng.lat,lon:e.latlng.lng};
+  if(map.getLayer('rt-line')&&R[mode]){const f=map.queryRenderedFeatures(e.point,{layers:['rt-line']}).find(x=>x.properties.sel==0);if(f)return pickRoute(+f.properties.i)}
+  const p={name:'Lokasi dipilih',sub:e.lngLat.lat.toFixed(5)+', '+e.lngLat.lng.toFixed(5),lat:e.lngLat.lat,lon:e.lngLat.lng};
   showPlace(p);
   try{const j=await(await fetch(`https://photon.komoot.io/reverse?lat=${p.lat}&lon=${p.lon}`)).json(),f=j.features[0]&&j.features[0].properties;
     if(f&&dest===p){p.name=f.name||f.street||p.name;p.sub=[f.street&&f.street!==f.name?f.street:'',f.city||f.district,f.state].filter(Boolean).join(', ')||p.sub;showPlace(p,true)}}catch(_){}
 });
 map.on('dragstart',()=>{if(navigating){follow=false;$('#bLoc').classList.remove('on')}});
-
 function showPlace(p,keep){
-  dest=p;R={};rg.clearLayers();
-  if(destM)map.removeLayer(destM);
-  destM=L.marker([p.lat,p.lon],{icon:L.divIcon({className:'',html:'<i class="fas fa-location-dot pin"></i>',iconSize:[24,30],iconAnchor:[12,30]})}).addTo(map);
-  if(!keep)map.flyTo([p.lat,p.lon],Math.max(map.getZoom(),15),{duration:.8});
+  dest=p;R={};setRoutes();
+  if(destM)destM.remove();
+  destM=mk('<i class="fas fa-location-dot pin"></i>','',p.lon,p.lat,'bottom');
+  if(!keep)map.flyTo({center:[p.lon,p.lat],zoom:Math.max(map.getZoom(),15),pitch:0,bearing:0,duration:800});
   sheet(`<div class="hd"><div><div class="t">${esc(p.name)}</div><div class="s">${esc(p.sub||'')}${me?' · '+fmtD(dm(me,p)):''}</div></div><button class="x" onclick="clearAll()"><i class="fas fa-xmark"></i></button></div>
   <div class="acts"><button class="pri" onclick="previewRoute()"><i class="fas fa-route"></i> Laluan</button><button onclick="savePlace()"><i class="fas fa-star"></i> Simpan</button><button onclick="share()"><i class="fas fa-share-nodes"></i> Kongsi</button></div>`);
 }
 function savePlace(){const s=saved().filter(x=>x.name!==dest.name);s.unshift({name:dest.name,sub:dest.sub,lat:dest.lat,lon:dest.lon});sv('wm_saved',s.slice(0,12));toast('Disimpan ke ★ Kegemaran')}
 function share(){const u=`https://www.openstreetmap.org/?mlat=${dest.lat}&mlon=${dest.lon}#map=17/${dest.lat}/${dest.lon}`;
   if(navigator.share)navigator.share({title:dest.name,url:u}).catch(()=>{});else{navigator.clipboard&&navigator.clipboard.writeText(u);toast('Pautan disalin')}}
-function clearAll(){endNav(true);dest=null;startPt=null;startName='Lokasi Saya';R={};rg.clearLayers();if(destM)map.removeLayer(destM);destM=null;$('#sheet').hidden=true}
+function clearAll(){endNav(true);dest=null;startPt=null;startName='Lokasi Saya';R={};setRoutes();if(destM)destM.remove();destM=null;poiM.forEach(m=>m.remove());poiM=[];$('#sheet').hidden=true}
 
 // ---------- Laluan ----------
-async function fetchRoute(m,a,b){
-  const u=`https://routing.openstreetmap.de/${MODES[m][0]}/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
-  const j=await(await fetch(u)).json();if(j.code!=='Ok')throw 0;return j.routes;
+async function fetchRoute(m,a,b,skip){
+  const ex=m=='driving'?[opt.toll&&'toll',opt.motorway&&'motorway'].filter(Boolean).join(','):'';
+  const u=`https://routing.openstreetmap.de/${MODES[m][0]}/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=full&geometries=geojson&steps=true&alternatives=true`+(ex&&!skip?'&exclude='+ex:'');
+  const j=await(await fetch(u)).json();
+  if(j.code!=='Ok'){if(ex&&!skip){toast('Pilihan elak tol/lebuh raya tiada di kawasan ini. Guna laluan biasa.');return fetchRoute(m,a,b,1)}throw 0}
+  return j.routes;
 }
 async function previewRoute(){
   const a=startPt||me;if(!a)return toast('GPS belum sedia. Benarkan lokasi atau isi lokasi mula.');
+  poiM.forEach(m=>m.remove());poiM=[];
   toast('Mengira laluan terbaik...',8000);
   R={};await Promise.all(Object.keys(MODES).map(async m=>{try{R[m]=await fetchRoute(m,a,dest)}catch(e){}}));
   $('#toast').style.display='none';
   if(!R[mode])mode=Object.keys(R)[0];
   if(!mode){mode='driving';return toast('Laluan tidak dijumpai.')}
-  sel=0;renderPreview();drawRoutes(true);
+  sel=0;renderPreview();setRoutes(true);
 }
-function setMode(m){if(!R[m])return;mode=m;sel=0;renderPreview();drawRoutes(true)}
-function pickRoute(i){sel=i;renderPreview();drawRoutes(false)}
-function drawRoutes(fit){
-  rg.clearLayers();const rs=R[mode];if(!rs)return;
-  [...rs.keys()].sort((a,b)=>(a==sel)-(b==sel)).forEach(i=>{
-    const c=rs[i].geometry.coordinates.map(x=>[x[1],x[0]]),on=i==sel;
-    L.polyline(c,{color:'#fff',weight:on?11:8,opacity:.9}).addTo(rg);
-    const l=L.polyline(c,{color:on?'#1a73e8':'#8e9aa8',weight:on?6:5}).addTo(rg);
-    if(!on)l.on('click',e=>{L.DomEvent.stopPropagation(e);pickRoute(i)});
-  });
-  if(fit)map.fitBounds(L.polyline(rs[sel].geometry.coordinates.map(x=>[x[1],x[0]])).getBounds(),{paddingTopLeft:[30,110],paddingBottomRight:[30,$('#sheet').offsetHeight+30]});
+function setMode(m){if(!R[m])return;mode=m;sel=0;renderPreview();setRoutes(true)}
+function pickRoute(i){sel=i;renderPreview();setRoutes(false)}
+function saveOpt(){opt={toll:$('#oT').checked,motorway:$('#oM').checked};sv('wm_opt',opt);previewRoute()}
+function setRoutes(fit){
+  const src=map.getSource('rt');if(!src)return;const rs=R[mode];
+  if(!rs){src.setData(EMPTY);return}
+  src.setData({type:'FeatureCollection',features:rs.map((r,i)=>({type:'Feature',properties:{i,sel:i==sel?1:0},geometry:r.geometry})).sort((a,b)=>a.properties.sel-b.properties.sel)});
+  if(fit)fitTo(rs[sel].geometry.coordinates);
 }
 function stepText(s){
   const m=s.maneuver,t=m.type,mo=m.modifier,n=s.name?' ke '+s.name:'';
@@ -324,138 +278,117 @@ function stepText(s){
   if(t=='fork')return 'Ikut simpang '+(/left/.test(mo)?'kiri':'kanan')+n;
   if(t=='merge')return 'Bergabung'+n;
   if(t=='continue'||mo=='straight')return 'Terus'+(s.name?' di '+s.name:'');
-  return (MOD[mo]||'Teruskan')+n;
+  return(MOD[mo]||'Teruskan')+n;
 }
 const rot=s=>ROT[s.maneuver.modifier]||0;
 function renderPreview(){
-  const r=R[mode][sel],st=r.legs[0].steps;
+  const rs=R[mode],r=rs[sel],st=r.legs[0].steps;
+  const fi=rs.reduce((b,x,i)=>x.duration<rs[b].duration?i:b,0),si=rs.reduce((b,x,i)=>x.distance<rs[b].distance?i:b,0);
   sheet(`<div class="hd"><div><div class="t">${esc(dest.name)}</div><div class="s">dari <input id="si" value="${esc(startName)}" autocomplete="off"></div><div class="dd" id="sg"></div></div><button class="x" onclick="clearAll()"><i class="fas fa-xmark"></i></button></div>
   <div class="tabs">${Object.keys(MODES).map(m=>`<button class="${m==mode?'on':''}" onclick="setMode('${m}')"><i class="fas ${MODES[m][1]}"></i> ${R[m]?fmtT(R[m][0].duration):'–'}</button>`).join('')}</div>
   <div class="big"><b>${fmtT(r.duration)}</b><span>${fmtD(r.distance)} · tiba ${eta(r.duration)}</span></div>
-  ${R[mode].length>1?`<div class="alts">${R[mode].map((x,i)=>`<button class="${i==sel?'on':''}" onclick="pickRoute(${i})">Laluan ${i+1} · ${fmtT(x.duration)}</button>`).join('')}</div>`:''}
+  ${rs.length>1?`<div class="alts">${rs.map((x,i)=>`<button class="${i==sel?'on':''}" onclick="pickRoute(${i})">Laluan ${i+1} · ${fmtT(x.duration)} · ${fmtD(x.distance)}${i==fi?' · Terpantas':''}${i==si&&i!=fi?' · Terdekat':''}</button>`).join('')}</div>`:''}
+  ${mode=='driving'?`<div class="opt"><label><input type="checkbox" id="oT" ${opt.toll?'checked':''} onchange="saveOpt()"> Elak tol</label><label><input type="checkbox" id="oM" ${opt.motorway?'checked':''} onchange="saveOpt()"> Elak lebuh raya</label></div>`:''}
   <div class="acts"><button class="pri" onclick="startNav()"><i class="fas fa-location-arrow"></i> Mula</button><button onclick="sim()"><i class="fas fa-play"></i> Simulasi</button></div>
   <details><summary>Arahan langkah demi langkah (${st.length})</summary>${st.map(s=>`<div class="st"><i class="fas fa-arrow-up" style="transform:rotate(${rot(s)}deg)"></i><span>${esc(stepText(s))}</span><small>${fmtD(s.distance)}</small></div>`).join('')}</details>`);
   bindSearch($('#si'),$('#sg'),p=>{startPt={lat:p.lat,lon:p.lon};startName=p.name;previewRoute()});
 }
 
-// ---------- Panduan Lorong / Lane Guidance Engine ----------
-function renderLaneGuidance(step){
-  const laneBox=$('#lane-box'),laneList=$('#lane-list');
-  if(!step||!step.maneuver){laneBox.style.display='none';return}
-  const mo=step.maneuver.modifier||'straight';
-  
-  // Bina gambaran lorong automatik mengikut jenis simpang
-  let lanes=[];
-  if(/left/.test(mo)){
-    lanes=[{i:'fa-arrow-left',a:true},{i:'fa-arrow-up',a:false},{i:'fa-arrow-up',a:false}];
-  }else if(/right/.test(mo)){
-    lanes=[{i:'fa-arrow-up',a:false},{i:'fa-arrow-up',a:false},{i:'fa-arrow-right',a:true}];
-  }else if(mo==='uturn'){
-    lanes=[{i:'fa-rotate-left',a:true},{i:'fa-arrow-up',a:false}];
-  }else{
-    lanes=[{i:'fa-arrow-up',a:false},{i:'fa-arrow-up',a:true},{i:'fa-arrow-up',a:false}];
-  }
-
-  laneList.innerHTML=lanes.map(l=>`<div class="lane-icon ${l.a?'active':''}"><i class="fas ${l.i}"></i></div>`).join('');
-  laneBox.style.display='flex';
+// ---------- Lorong (lane guidance, dari data OSM) ----------
+const LR={left:-90,'slight left':-45,'sharp left':-135,right:90,'slight right':45,'sharp right':135,straight:0,uturn:180};
+function renderLanes(){
+  const el=$('#lanes'),lh=$('#lh'),a=steps[idx].intersections,b=steps[Math.min(idx+1,steps.length-1)].intersections;
+  const ln=[b&&b[0],a&&a[a.length-1]].map(x=>x&&x.lanes).find(l=>l&&l.length>1);
+  laneHint='';
+  if(!ln){el.style.display=lh.style.display='none';return}
+  el.innerHTML=ln.map(l=>`<span class="ln ${l.valid?'ok':''}">${l.indications.filter(x=>x!='none').slice(0,2).map(x=>`<i class="fas fa-arrow-up" style="transform:rotate(${LR[x]||0}deg)"></i>`).join('')}</span>`).join('');
+  const v=ln.map((l,i)=>l.valid?i:-1).filter(i=>i>=0),n=ln.length;
+  if(v.length&&v.length<n)laneHint=v[v.length-1]<n/2?'Guna lorong kiri':v[0]>=n/2?'Guna lorong kanan':'Guna lorong tengah';
+  lh.textContent=laneHint;el.style.display='flex';lh.style.display=laneHint?'block':'none';
 }
 
 // ---------- Navigasi Live ----------
-function say(t){if(muted||!window.speechSynthesis)return;speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ms-MY';speechSynthesis.speak(u)}
-
-async function startNav(){
+async function startNav(isSim){
   const r=R[mode][sel];steps=r.legs[0].steps;total=r;navCoords=r.geometry.coordinates.map(c=>[c[1],c[0]]);
   suf=[];let s=0;for(let i=steps.length-1;i>=0;i--){s+=steps[i].distance;suf[i]=s}
-  idx=0;flags={};off=0;navigating=true;follow=true;
-  
-  // Aktifkan Pandangan 3D Pemandu
-  toggleDriver3D(true);
-
-  $('#top').style.display='none';$('#banner').style.display='flex';$('#bLoc').classList.add('on');
-  sheet(`<div class="nb"><div class="c"><b id="nE">--</b><span>Tiba</span></div><div class="c"><b id="nT">--</b><span>Masa</span></div><div class="c"><b id="nD">--</b><span>Baki</span></div><div class="c"><b id="nS">0</b><span>km/j</span></div><button onclick="toggleMute(this)"><i class="fas fa-volume-high"></i></button><button class="ex" onclick="endNav()"><i class="fas fa-xmark"></i></button></div>`);
+  idx=0;flags={};off=0;navigating=true;follow=true;tilt=true;lastP=null;
+  $('#top').style.display='none';$('#banner').style.display='flex';$('#bLoc').classList.add('on');$('#bTilt').style.display='';$('#bTilt').classList.add('on');
+  if(meM)meM.el.classList.add('nav');
+  sheet(`<div class="nb"><div class="c"><b id="nE">--</b><span>Tiba</span></div><div class="c"><b id="nT">--</b><span>Masa</span></div><div class="c"><b id="nD">--</b><span>Baki</span></div><div class="c"><b id="nS">0</b><span>km/j</span></div><button onclick="toggleMute(this)"><i class="fas fa-volume-high"></i></button><button class="ex" onclick="endNav()"><i class="fas fa-xmark"></i></button></div>
+  ${isSim?`<div class="sl"><span>Kelajuan simulasi</span><input type="range" min="10" max="140" step="5" value="${simKmh}" oninput="simKmh=+this.value;$('#sv').textContent=simKmh+' km/j'"><b id="sv">${simKmh} km/j</b></div>`:''}`);
   $('#hdl').style.display='none';
   try{wake=await navigator.wakeLock.request('screen')}catch(e){}
-  if(me)map.setView([me.lat,me.lon],17);
-  say(stepText(steps[0]));navTick();
+  setRoutes();map.getSource('rt').setData({type:'FeatureCollection',features:[{type:'Feature',properties:{i:0,sel:1},geometry:r.geometry}]});
+  alertSay(stepText(steps[0]),'start');
+  if(me)camera(0);navTick();
 }
-
+function camera(sp){map.easeTo({center:[me.lon,me.lat],bearing:hdg,pitch:tilt?62:0,zoom:sp>22?16:sp>10?17:17.8,offset:[0,Math.round(innerHeight*.2)],duration:simT?600:1000,easing:t=>t})}
+function toggleTilt(){tilt=!tilt;$('#bTilt').classList.toggle('on',tilt);if(me)camera(0)}
 function toggleMute(b){muted=!muted;if(muted&&window.speechSynthesis)speechSynthesis.cancel();b.innerHTML=`<i class="fas ${muted?'fa-volume-xmark':'fa-volume-high'}"></i>`}
-
 function navTick(){
   if(!navigating||!me)return;
-  let nx=steps[Math.min(idx+1,steps.length-1)],d=dm(me,{lat:nx.maneuver.location[1],lon:nx.maneuver.location[0]});
-  const last=idx+1>=steps.length-1;
+  const nx=steps[Math.min(idx+1,steps.length-1)],d=dm(me,{lat:nx.maneuver.location[1],lon:nx.maneuver.location[0]}),last=idx+1>=steps.length-1;
   if(!last&&d<25){idx++;flags={};return navTick()}
   if(last&&d<30)return arrived();
-  
-  // Semak jika keluar dari laluan
   let md=1e9;for(let i=0;i<navCoords.length-1;i++){const x=segDist(me,navCoords[i],navCoords[i+1]);if(x<md)md=x}
   off=md>70?off+1:0;
   if(off>=3&&!rerouting&&!simT)return reroute();
-  
+  renderLanes();
   const fast=mode=='driving',t1=fast?300:80,t2=fast?60:25;
-  if(d<t1&&!flags.a){flags.a=1;say(`Dalam ${Math.round(d/50)*50} meter, ${stepText(nx)}`)}
-  if(d<t2&&!flags.b){flags.b=1;say(stepText(nx))}
-  
+  if(last){if(d<250&&!flags.c){flags.c=1;alertSay('Destinasi anda hampir sampai','near')}}
+  else{
+    if(d<t1&&!flags.a){flags.a=1;alertSay(`Dalam ${Math.max(50,Math.round(d/50)*50)} meter, ${stepText(nx)}`+(laneHint?'. '+laneHint:''),'turn')}
+    if(d<t2&&!flags.b){flags.b=1;alertSay(stepText(nx),'near')}
+  }
   const rem=d+suf[Math.min(idx+1,steps.length-1)],sec=total.duration*rem/total.distance;
   $('#bi').style.transform=`rotate(${rot(nx)}deg)`;$('#bd').textContent=fmtD(d);$('#bn').textContent=stepText(nx);
   $('#nE').textContent=eta(sec);$('#nT').textContent=fmtT(sec);$('#nD').textContent=fmtD(rem);
-
-  // Kemaskini Indikator Lorong
-  renderLaneGuidance(nx);
 }
-
 async function reroute(){
-  rerouting=true;toast('Keluar laluan. Mengira semula...');say('Mengira semula laluan');
-  try{const rs=await fetchRoute(mode,me,dest);R[mode]=rs;sel=0;drawRoutes(false);
-    const r=rs[0];steps=r.legs[0].steps;total=r;navCoords=r.geometry.coordinates.map(c=>[c[1],c[0]]);suf=[];let s=0;for(let i=steps.length-1;i>=0;i--){s+=steps[i].distance;suf[i]=s}idx=0;flags={};off=0}
+  rerouting=true;toast('Keluar laluan. Mengira semula...');alertSay('Mengira semula laluan','reroute');
+  try{const rs=await fetchRoute(mode,me,dest);R[mode]=rs;sel=0;
+    const r=rs[0];steps=r.legs[0].steps;total=r;navCoords=r.geometry.coordinates.map(c=>[c[1],c[0]]);suf=[];let s=0;for(let i=steps.length-1;i>=0;i--){s+=steps[i].distance;suf[i]=s}idx=0;flags={};off=0;
+    map.getSource('rt').setData({type:'FeatureCollection',features:[{type:'Feature',properties:{i:0,sel:1},geometry:r.geometry}]})}
   catch(e){toast('Gagal mengira semula.')}
   rerouting=false;
 }
-
-function arrived(){say('Anda telah tiba di destinasi');toast('🏁 Anda telah tiba!',6000);endNav(false,true)}
-
-function endNav(silent,keepDest){
-  navigating=false;clearInterval(simT);simT=null;if(window.speechSynthesis)speechSynthesis.cancel();
+function arrived(){alertSay('Anda telah tiba di destinasi','arrive');toast('🏁 Anda telah tiba!',6000);endNav(false)}
+function endNav(silent){
+  if(navigating&&window.speechSynthesis&&silent)speechSynthesis.cancel();
+  const was=navigating;navigating=false;clearInterval(simT);simT=null;
   if(wake){wake.release();wake=null}
-  
-  // Tutup Pandangan 3D
-  toggleDriver3D(false);
-
-  $('#top').style.display='';$('#banner').style.display='none';$('#hdl').style.display='';$('#bLoc').classList.remove('on');
-  if(!silent&&dest){if(R[mode])renderPreview();else showPlace(dest,true)}
+  $('#top').style.display='';$('#banner').style.display='none';$('#hdl').style.display='';$('#bLoc').classList.remove('on');$('#bTilt').style.display='none';
+  if(meM)meM.el.classList.remove('nav');
+  if(was)map.easeTo({pitch:0,bearing:0,offset:[0,0],duration:700});
+  if(!silent&&dest){if(R[mode]){renderPreview();setRoutes(true)}else showPlace(dest,true)}
 }
-
-// Simulasi pemanduan dengan animasi pergerakan smooth
+// Simulasi pemanduan dengan kelajuan boleh laras
 function sim(){
-  startNav();const c=navCoords;let i=0,p={lat:c[0][0],lon:c[0][1]};
-  simT=setInterval(()=>{let mv=mode=='driving'?30:8;
-    while(mv>0&&i<c.length-1){const n={lat:c[i+1][0],lon:c[i+1][1]},d=dm(p,n);if(d<=mv){mv-=d;p=n;i++}else{const f=mv/d;p={lat:p.lat+(n.lat-p.lat)*f,lon:p.lon+(n.lon-p.lon)*f};mv=0}}
-    onPos({coords:{latitude:p.lat,longitude:p.lon,speed:mode=='driving'?14:2}});
-    if(i>=c.length-1&&navigating)clearInterval(simT)},700);
+  startNav(true);const c=navCoords;let i=0,p={lat:c[0][0],lon:c[0][1]};
+  simT=setInterval(()=>{let mv=simKmh/3.6*.5,h=hdg;
+    while(mv>0&&i<c.length-1){const n={lat:c[i+1][0],lon:c[i+1][1]},d=dm(p,n);h=brg(p,n);if(d<=mv){mv-=d;p=n;i++}else{const f=mv/d;p={lat:p.lat+(n.lat-p.lat)*f,lon:p.lon+(n.lon-p.lon)*f};mv=0}}
+    onPos({coords:{latitude:p.lat,longitude:p.lon,speed:simKmh/3.6,heading:h}});
+    if(i>=c.length-1)clearInterval(simT)},500);
 }
 
 // ---------- GPS ----------
 function onPos(pos){
-  me={lat:pos.coords.latitude,lon:pos.coords.longitude};
-  if(!meM)meM=L.marker([me.lat,me.lon],{icon:L.divIcon({className:'',html:'<div class="me"></div>',iconSize:[22,22]}),zIndexOffset:1000}).addTo(map);
-  else meM.setLatLng([me.lat,me.lon]);
-  
+  const c=pos.coords,np={lat:c.latitude,lon:c.longitude};
+  if(!lastP)lastP=np;else if(dm(lastP,np)>4){hdg=(c.heading!=null&&!isNaN(c.heading)&&(c.speed||0)>1)?c.heading:brg(lastP,np);lastP=np}
+  me=np;
+  if(!meM)meM=mk('<div></div>','me',me.lon,me.lat);else meM.setLngLat([me.lon,me.lat]);
   if(navigating){
-    const sp=pos.coords.speed||0;$('#nS').textContent=Math.round(sp*3.6);
-    navTick();
-    if(follow)map.setView([me.lat,me.lon],sp>20?16:sp>8?17:18,{animate:true});
+    const sp=c.speed||0;$('#nS').textContent=Math.round(sp*3.6);
+    navTick();if(follow&&navigating)camera(sp);
   }
 }
-
 function locate(){
-  if(navigating&&!follow){follow=true;$('#bLoc').classList.add('on');if(me)map.setView([me.lat,me.lon],17);return}
-  if(me)map.flyTo([me.lat,me.lon],16);else toast('Menunggu GPS... pastikan akses lokasi dibenarkan.');
+  if(navigating&&!follow){follow=true;$('#bLoc').classList.add('on');if(me)camera(0);return}
+  if(me)map.flyTo({center:[me.lon,me.lat],zoom:16,pitch:0,bearing:0});else toast('Menunggu GPS... pastikan akses lokasi dibenarkan.');
 }
-
 if(navigator.geolocation){
   let first=true;
-  navigator.geolocation.watchPosition(p=>{if(simT)return;onPos(p);if(first){first=false;map.flyTo([me.lat,me.lon],15)}},
+  navigator.geolocation.watchPosition(p=>{if(simT)return;onPos(p);if(first){first=false;map.flyTo({center:[me.lon,me.lat],zoom:15})}},
     e=>toast('GPS tidak tersedia. Benarkan akses lokasi dalam pelayar.'),{enableHighAccuracy:true,maximumAge:2000});
 }
 </script>
