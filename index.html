@@ -3,52 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WuzMap - Navigasi Saya</title>
+    <title>WuzMap - Navigasi Moden</title>
     
     <!-- Library Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
+    <!-- Library Font Awesome untuk Ikon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
+        /* UI Moden: Buang margin, guna font moden */
         body {
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
         }
+        
         #map { 
             height: 100vh; 
             width: 100%; 
+            z-index: 1;
         }
-        /* Kotak carian */
+
+        /* Kotak Carian yang nampak moden */
         .search-container {
             position: absolute;
-            top: 15px;
-            left: 50px;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 1000;
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 500px;
             display: flex;
-            gap: 5px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            padding: 5px;
+            align-items: center;
         }
+
         .search-container input {
-            padding: 8px;
-            width: 250px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
+            flex: 1;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 30px;
+            outline: none;
         }
+
         .search-container button {
-            padding: 8px 15px;
             background-color: #0078A8;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
             cursor: pointer;
-            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: 0.3s;
         }
+
         .search-container button:hover {
             background-color: #005f86;
+            transform: scale(1.05);
+        }
+
+        /* Butang Lokasi Semasa (GPS) */
+        .locate-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            color: #333;
+            border: none;
+            border-radius: 50%;
+            width: 55px;
+            height: 55px;
+            font-size: 22px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: 0.3s;
+        }
+
+        .locate-btn:hover {
+            color: #0078A8;
+            background: #f0f0f0;
         }
     </style>
 </head>
@@ -57,41 +103,46 @@
     <!-- Kotak Carian -->
     <div class="search-container">
         <input type="text" id="searchInput" placeholder="Cari tempat (cth: KLCC, Mid Valley)..." onkeypress="handleKeyPress(event)">
-        <button onclick="searchPlace()">Cari</button>
+        <button onclick="searchPlace()" title="Cari">
+            <i class="fas fa-search"></i>
+        </button>
     </div>
 
     <!-- Peta -->
     <div id="map"></div>
 
+    <!-- Butang Cari Lokasi Semasa -->
+    <button class="locate-btn" onclick="locateUser()" title="Cari Lokasi Saya">
+        <i class="fas fa-crosshairs"></i>
+    </button>
+
     <!-- Library Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
-        // 1. Inisialisasi peta (Fokus di Kuala Lumpur)
+        // 1. Inisialisasi peta
         var map = L.map('map').setView([3.1390, 101.6869], 13);
 
-        // 2. Guna jubin OSM (OpenStreetMap)
-        // Menggunakan referrerPolicy untuk elak blok 403
+        // 2. Guna jubin OSM
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            referrerPolicy: 'strict-origin-when-cross-origin' // Kunci penting untuk elak blok
+            attribution: '&copy; OpenStreetMap contributors',
+            referrerPolicy: 'strict-origin-when-cross-origin'
         }).addTo(map);
 
-        // 3. Fungsi Carian menggunakan Nominatim API
+        // Pembolehubah untuk simpan penanda
+        var currentMarker = null;
+
+        // 3. Fungsi Carian Tempat
         async function searchPlace() {
             var query = document.getElementById('searchInput').value;
             if (!query) return;
 
-            // Panggil Nominatim (Peta OSM)
-            var url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=my`;
+            var url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
 
             try {
                 var response = await fetch(url, {
-                    headers: {
-                        'Accept-Language': 'ms,en', // Cuba cari dalam Bahasa Melayu atau Inggeris
-                        'User-Agent': 'WuzMap/1.0' // Beritahu OSM ini aplikasi kita
-                    }
+                    headers: { 'Accept-Language': 'ms,en', 'User-Agent': 'WuzMap/1.0' }
                 });
                 var data = await response.json();
                 
@@ -100,33 +151,62 @@
                     var lon = data[0].lon;
                     var name = data[0].display_name;
                     
-                    // Terbang ke lokasi
-                    map.flyTo([lat, lon], 16);
+                    // Terbang ke lokasi dengan animasi
+                    map.flyTo([lat, lon], 16, { duration: 2 });
                     
-                    // Letak penanda dan buka popup
-                    L.marker([lat, lon]).addTo(map)
-                        .bindPopup(`<b>${query}</b><br>${name}`)
+                    // Buang penanda lama jika ada
+                    if (currentMarker) { map.removeLayer(currentMarker); }
+                    
+                    // Letak penanda baru
+                    currentMarker = L.marker([lat, lon]).addTo(map)
+                        .bindPopup(`<b>${query}</b><br><small>${name}</small>`)
                         .openPopup();
                 } else {
                     alert('Maaf, lokasi tidak ditemui. Sila cuba nama lain.');
                 }
             } catch (error) {
-                console.error(error);
-                alert('Ralat sambungan. Sila semak internet anda.');
+                alert('Ralat sambungan internet.');
             }
         }
 
-        // Fungsi untuk benarkan carian dengan tekan "Enter"
+        // Fungsi Enter pada keyboard
         function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                searchPlace();
-            }
+            if (event.key === 'Enter') { searchPlace(); }
         }
 
-        // 4. Tambah penanda awal di tengah KL
-        L.marker([3.1390, 101.6869]).addTo(map)
-            .bindPopup('Kuala Lumpur')
-            .openPopup();
+        // 4. Fungsi Cari Lokasi Semasa (GPS Browser)
+        function locateUser() {
+            if (!navigator.geolocation) {
+                alert("Pelayar anda tidak menyokong ciri lokasi GPS.");
+                return;
+            }
+
+            // Tunjuk loading (ubah warna butang)
+            var btn = document.querySelector('.locate-btn');
+            btn.style.color = "#0078A8";
+
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    var lat = position.coords.latitude;
+                    var lon = position.coords.longitude;
+                    
+                    map.flyTo([lat, lon], 16, { duration: 2 });
+
+                    if (currentMarker) { map.removeLayer(currentMarker); }
+                    
+                    currentMarker = L.marker([lat, lon]).addTo(map)
+                        .bindPopup('<b>Anda di sini</b>')
+                        .openPopup();
+                        
+                    btn.style.color = "#333"; // Kembalikan warna
+                },
+                function(error) {
+                    alert("Gagal mendapatkan lokasi. Pastikan anda membenarkan (Allow) akses lokasi pada pelayar anda.");
+                    btn.style.color = "#333";
+                },
+                { enableHighAccuracy: true } // Guna GPS telefon jika ada
+            );
+        }
     </script>
 </body>
 </html>
