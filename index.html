@@ -15,6 +15,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#222}
 #map{position:absolute;inset:0;z-index:1}
 button{font:inherit;cursor:pointer;border:0;color:var(--tx)}
 .leaflet-control-zoom{display:none}
+body.dark:not(.sat) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9) saturate(.8)}
 .leaflet-popup-content-wrapper{background:var(--bg);color:var(--tx);border-radius:14px}.leaflet-popup-tip{background:var(--bg)}
 #top{position:absolute;z-index:1000;top:calc(10px + env(safe-area-inset-top));left:10px;right:10px;max-width:460px}
 .sb{display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:28px;padding:4px 16px;box-shadow:0 2px 10px rgba(0,0,0,.3)}
@@ -108,11 +109,10 @@ const ROT={straight:0,'slight right':45,right:90,'sharp right':135,uturn:180,'sh
 const map=L.map('map',{zoomControl:false,attributionControl:true}).setView([3.139,101.687],12);
 const T={
  light:L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}),
- dark:L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'&copy; OpenStreetMap &copy; CARTO'}),
  sat:L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:18,attribution:'Esri'})
 };
 let dark=ld('wm_dark',matchMedia('(prefers-color-scheme:dark)').matches),sat=false,curT;
-function applyTiles(){if(curT)map.removeLayer(curT);curT=sat?T.sat:dark?T.dark:T.light;curT.addTo(map);document.body.classList.toggle('dark',dark);$('#bDark i').className='fas '+(dark?'fa-sun':'fa-moon');$('#bSat').classList.toggle('on',sat)}
+function applyTiles(){if(curT)map.removeLayer(curT);curT=sat?T.sat:T.light;document.body.classList.toggle('sat',sat);curT.addTo(map);document.body.classList.toggle('dark',dark);$('#bDark i').className='fas '+(dark?'fa-sun':'fa-moon');$('#bSat').classList.toggle('on',sat)}
 function toggleDark(){dark=!dark;sv('wm_dark',dark);applyTiles()}
 function toggleSat(){sat=!sat;applyTiles()}
 applyTiles();
