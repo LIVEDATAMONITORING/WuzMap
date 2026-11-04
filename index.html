@@ -3,209 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WuzMap - Navigasi Moden</title>
+    <title>WuzMap - Navigasi & Laluan</title>
     
-    <!-- Library Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
-    <!-- Library Font Awesome untuk Ikon -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* UI Moden: Buang margin, guna font moden */
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        #map { height: 100vh; width: 100%; z-index: 1; }
+
+        /* Panel Carian & Laluan di Kiri Atas */
+        .routing-panel {
+            position: absolute; top: 20px; left: 20px; z-index: 1000;
+            background: white; padding: 15px; border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 320px;
+        }
+
+        .input-group { display: flex; align-items: center; margin-bottom: 10px; }
+        .input-group i { width: 25px; text-align: center; margin-right: 5px; }
+        .dot-start { color: #28a745; }
+        .dot-end { color: #dc3545; }
+        
+        .routing-panel input {
+            flex: 1; padding: 10px; border: 1px solid #ccc;
+            border-radius: 8px; font-size: 14px; outline: none;
         }
         
-        #map { 
-            height: 100vh; 
-            width: 100%; 
-            z-index: 1;
+        .routing-panel button {
+            width: 100%; padding: 12px; background-color: #0078A8;
+            color: white; border: none; border-radius: 8px;
+            font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s;
+        }
+        .routing-panel button:hover { background-color: #005f86; }
+
+        /* Kotak Keputusan (Jarak & Masa) */
+        #route-info {
+            display: none; margin-top: 15px; padding: 10px;
+            background: #e8f4f8; border-radius: 8px; text-align: center;
+            font-weight: bold; color: #005f86;
         }
 
-        /* Kotak Carian yang nampak moden */
-        .search-container {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            width: 90%;
-            max-width: 500px;
-            display: flex;
-            background: white;
-            border-radius: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            padding: 5px;
-            align-items: center;
-        }
-
-        .search-container input {
-            flex: 1;
-            border: none;
-            padding: 12px 20px;
-            font-size: 16px;
-            border-radius: 30px;
-            outline: none;
-        }
-
-        .search-container button {
-            background-color: #0078A8;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 45px;
-            height: 45px;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: 0.3s;
-        }
-
-        .search-container button:hover {
-            background-color: #005f86;
-            transform: scale(1.05);
-        }
-
-        /* Butang Lokasi Semasa (GPS) */
+        /* Butang GPS */
         .locate-btn {
-            position: absolute;
-            bottom: 30px;
-            right: 20px;
-            z-index: 1000;
-            background: white;
-            color: #333;
-            border: none;
-            border-radius: 50%;
-            width: 55px;
-            height: 55px;
-            font-size: 22px;
-            cursor: pointer;
+            position: absolute; bottom: 30px; right: 20px; z-index: 1000;
+            background: white; color: #333; border: none; border-radius: 50%;
+            width: 55px; height: 55px; font-size: 22px; cursor: pointer;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: 0.3s;
+            display: flex; justify-content: center; align-items: center; transition: 0.3s;
         }
+        .locate-btn:hover { color: #0078A8; background: #f0f0f0; }
 
-        .locate-btn:hover {
-            color: #0078A8;
-            background: #f0f0f0;
-        }
+        /* Loading Spinner */
+        #loader { display: none; text-align: center; margin-top: 10px; color: #0078A8; }
     </style>
 </head>
 <body>
 
-    <!-- Kotak Carian -->
-    <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Cari tempat (cth: KLCC, Mid Valley)..." onkeypress="handleKeyPress(event)">
-        <button onclick="searchPlace()" title="Cari">
-            <i class="fas fa-search"></i>
+    <!-- Panel Laluan -->
+    <div class="routing-panel">
+        <div class="input-group">
+            <i class="fas fa-circle dot-start"></i>
+            <input type="text" id="startInput" placeholder="Lokasi Mula (A)">
+        </div>
+        <div class="input-group">
+            <i class="fas fa-map-marker-alt dot-end"></i>
+            <input type="text" id="endInput" placeholder="Destinasi (B)">
+        </div>
+        <button onclick="calculateRoute()">
+            <i class="fas fa-route"></i> Dapatkan Laluan
         </button>
+        <div id="loader"><i class="fas fa-spinner fa-spin"></i> Mencari jalan...</div>
+        <div id="route-info"></div>
     </div>
 
     <!-- Peta -->
     <div id="map"></div>
 
-    <!-- Butang Cari Lokasi Semasa -->
+    <!-- Butang GPS -->
     <button class="locate-btn" onclick="locateUser()" title="Cari Lokasi Saya">
         <i class="fas fa-crosshairs"></i>
     </button>
 
-    <!-- Library Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
     <script>
-        // 1. Inisialisasi peta
-        var map = L.map('map').setView([3.1390, 101.6869], 13);
+        var map = L.map('map').setView([3.1390, 101.6869], 12);
 
-        // 2. Guna jubin OSM
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19, attribution: '&copy; OpenStreetMap',
             referrerPolicy: 'strict-origin-when-cross-origin'
         }).addTo(map);
 
-        // Pembolehubah untuk simpan penanda
-        var currentMarker = null;
+        // Pembolehubah global
+        var startMarker, endMarker, routeLine;
+        var startCoords = null, endCoords = null;
 
-        // 3. Fungsi Carian Tempat
-        async function searchPlace() {
-            var query = document.getElementById('searchInput').value;
-            if (!query) return;
+        // 1. Fungsi Tukar Teks Alamat kepada Koordinat (Geocoding)
+        async function getCoordinates(address) {
+            var url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+            var response = await fetch(url, { headers: { 'User-Agent': 'WuzMap/1.0' } });
+            var data = await response.json();
+            if (data.length > 0) {
+                return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), name: data[0].display_name };
+            }
+            return null;
+        }
 
-            var url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`;
+        // 2. Fungsi Utama Laluan
+        async function calculateRoute() {
+            var startTxt = document.getElementById('startInput').value;
+            var endTxt = document.getElementById('endInput').value;
+
+            if (!startTxt || !endTxt) { alert("Sila isi kedua-dua lokasi mula dan destinasi."); return; }
+
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('route-info').style.display = 'none';
 
             try {
-                var response = await fetch(url, {
-                    headers: { 'Accept-Language': 'ms,en', 'User-Agent': 'WuzMap/1.0' }
-                });
-                var data = await response.json();
-                
-                if (data.length > 0) {
-                    var lat = data[0].lat;
-                    var lon = data[0].lon;
-                    var name = data[0].display_name;
+                // Dapatkan koordinat (A dan B)
+                var startLoc = await getCoordinates(startTxt);
+                var endLoc = await getCoordinates(endTxt);
+
+                if (!startLoc || !endLoc) { alert("Lokasi tidak dijumpai. Sila cuba nama yang lebih spesifik."); return; }
+
+                // Padam laluan lama jika ada
+                if (startMarker) map.removeLayer(startMarker);
+                if (endMarker) map.removeLayer(endMarker);
+                if (routeLine) map.removeLayer(routeLine);
+
+                // Letak penanda A dan B
+                startMarker = L.marker([startLoc.lat, startLoc.lon]).addTo(map).bindPopup("Mula: " + startTxt);
+                endMarker = L.marker([endLoc.lat, endLoc.lon]).addTo(map).bindPopup("Destinasi: " + endTxt);
+
+                // Panggil API OSRM untuk laluan
+                var osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startLoc.lon},${startLoc.lat};${endLoc.lon},${endLoc.lat}?overview=full&geometries=geojson`;
+                var routeResponse = await fetch(osrmUrl);
+                var routeData = await routeResponse.json();
+
+                if (routeData.code === 'Ok' && routeData.routes.length > 0) {
+                    var route = routeData.routes[0];
                     
-                    // Terbang ke lokasi dengan animasi
-                    map.flyTo([lat, lon], 16, { duration: 2 });
-                    
-                    // Buang penanda lama jika ada
-                    if (currentMarker) { map.removeLayer(currentMarker); }
-                    
-                    // Letak penanda baru
-                    currentMarker = L.marker([lat, lon]).addTo(map)
-                        .bindPopup(`<b>${query}</b><br><small>${name}</small>`)
-                        .openPopup();
+                    // Ambil jarak & masa
+                    var distanceKm = (route.distance / 1000).toFixed(1);
+                    var durationMin = Math.round(route.duration / 60);
+
+                    // Papar info
+                    document.getElementById('route-info').innerHTML = 
+                        `Jarak: <b>${distanceKm} km</b><br>Masa: <b>~${durationMin} minit</b>`;
+                    document.getElementById('route-info').style.display = 'block';
+
+                    // Lukis garisan laluan
+                    var coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
+                    routeLine = L.polyline(coords, { color: '#0078A8', weight: 6, opacity: 0.8 }).addTo(map);
+
+                    // Zoom peta untuk muatkan laluan
+                    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
                 } else {
-                    alert('Maaf, lokasi tidak ditemui. Sila cuba nama lain.');
+                    alert("Gagal mengira laluan antara dua lokasi ini.");
                 }
+
             } catch (error) {
-                alert('Ralat sambungan internet.');
+                console.error(error);
+                alert("Ralat sambungan ke pelayan laluan.");
+            } finally {
+                document.getElementById('loader').style.display = 'none';
             }
         }
 
-        // Fungsi Enter pada keyboard
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') { searchPlace(); }
-        }
-
-        // 4. Fungsi Cari Lokasi Semasa (GPS Browser)
+        // 3. Fungsi Lokasi Semasa (GPS)
         function locateUser() {
-            if (!navigator.geolocation) {
-                alert("Pelayar anda tidak menyokong ciri lokasi GPS.");
-                return;
-            }
-
-            // Tunjuk loading (ubah warna butang)
-            var btn = document.querySelector('.locate-btn');
-            btn.style.color = "#0078A8";
-
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    var lat = position.coords.latitude;
-                    var lon = position.coords.longitude;
-                    
-                    map.flyTo([lat, lon], 16, { duration: 2 });
-
-                    if (currentMarker) { map.removeLayer(currentMarker); }
-                    
-                    currentMarker = L.marker([lat, lon]).addTo(map)
-                        .bindPopup('<b>Anda di sini</b>')
-                        .openPopup();
-                        
-                    btn.style.color = "#333"; // Kembalikan warna
-                },
-                function(error) {
-                    alert("Gagal mendapatkan lokasi. Pastikan anda membenarkan (Allow) akses lokasi pada pelayar anda.");
-                    btn.style.color = "#333";
-                },
-                { enableHighAccuracy: true } // Guna GPS telefon jika ada
-            );
+            if (!navigator.geolocation) { alert("Pelayar tidak menyokong GPS."); return; }
+            
+            navigator.geolocation.getCurrentPosition(function(position) {
+                var lat = position.coords.latitude;
+                var lon = position.coords.longitude;
+                map.flyTo([lat, lon], 16);
+                
+                // Masukkan koordinat ke dalam input mula secara automatik
+                document.getElementById('startInput').value = `${lat}, ${lon}`;
+                
+                L.marker([lat, lon]).addTo(map).bindPopup("Anda di sini").openPopup();
+            }, function() {
+                alert("Gagal mendapat lokasi. Benarkan akses GPS.");
+            });
         }
     </script>
 </body>
