@@ -3,190 +3,303 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WuzMap - Navigasi & Laluan</title>
+    <title>WuzMap - Navigasi Modern</title>
     
+    <!-- Leaflet CSS & Fonts -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #f8fafc; }
         #map { height: 100vh; width: 100%; z-index: 1; }
 
-        /* Panel Carian & Laluan di Kiri Atas */
+        /* Floating Modern Glassmorphism Panel */
         .routing-panel {
-            position: absolute; top: 20px; left: 20px; z-index: 1000;
-            background: white; padding: 15px; border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 320px;
+            position: absolute; top: 16px; left: 16px; z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            padding: 18px; border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            width: calc(100% - 32px); max-width: 360px;
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transition: all 0.3s ease;
         }
 
-        .input-group { display: flex; align-items: center; margin-bottom: 10px; }
-        .input-group i { width: 25px; text-align: center; margin-right: 5px; }
-        .dot-start { color: #28a745; }
-        .dot-end { color: #dc3545; }
-        
+        .input-wrapper { position: relative; margin-bottom: 10px; }
+        .input-group { display: flex; align-items: center; background: #f1f5f9; border-radius: 12px; padding: 4px 12px; }
+        .input-group i { font-size: 14px; margin-right: 10px; }
+        .dot-start { color: #10b981; }
+        .dot-end { color: #ef4444; }
+
         .routing-panel input {
-            flex: 1; padding: 10px; border: 1px solid #ccc;
-            border-radius: 8px; font-size: 14px; outline: none;
+            width: 100%; padding: 10px 0; border: none; background: transparent;
+            font-size: 14px; outline: none; color: #1e293b; font-weight: 500;
         }
-        
-        .routing-panel button {
-            width: 100%; padding: 12px; background-color: #0078A8;
-            color: white; border: none; border-radius: 8px;
-            font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s;
-        }
-        .routing-panel button:hover { background-color: #005f86; }
 
-        /* Kotak Keputusan (Jarak & Masa) */
+        /* Autocomplete Dropdown List */
+        .suggestions-list {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: white; border-radius: 12px; margin-top: 4px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-height: 200px; overflow-y: auto; z-index: 1001; display: none;
+            border: 1px solid #e2e8f0;
+        }
+        .suggestion-item {
+            padding: 10px 14px; font-size: 13px; cursor: pointer; color: #334155;
+            display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f1f5f9;
+        }
+        .suggestion-item:hover { background: #f8fafc; color: #0284c7; }
+
+        /* Mode Pengangkutan Selector */
+        .mode-selector { display: flex; gap: 8px; margin-bottom: 12px; }
+        .mode-btn {
+            flex: 1; padding: 8px; border: 1px solid #e2e8f0; background: white;
+            border-radius: 10px; cursor: pointer; font-size: 13px; color: #64748b;
+            display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;
+        }
+        .mode-btn.active { background: #0284c7; color: white; border-color: #0284c7; font-weight: 600; }
+
+        /* Action Buttons */
+        .btn-primary {
+            width: 100%; padding: 12px; background: #0284c7; color: white;
+            border: none; border-radius: 12px; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-primary:hover { background: #0369a1; }
+
+        .btn-success {
+            width: 100%; padding: 12px; background: #10b981; color: white;
+            border: none; border-radius: 12px; font-size: 14px; font-weight: 600;
+            cursor: pointer; margin-top: 8px; display: none; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-success:hover { background: #059669; }
+
+        /* Information & Status Card */
         #route-info {
-            display: none; margin-top: 15px; padding: 10px;
-            background: #e8f4f8; border-radius: 8px; text-align: center;
-            font-weight: bold; color: #005f86;
+            display: none; margin-top: 12px; padding: 12px;
+            background: #f0f9ff; border-radius: 12px; border: 1px solid #bae6fd;
+            text-align: center; color: #0369a1; font-size: 14px;
         }
+        #loader { display: none; text-align: center; margin-top: 10px; color: #0284c7; font-size: 13px; }
 
-        /* Butang GPS */
+        /* Floating GPS Floating Action Button */
         .locate-btn {
-            position: absolute; bottom: 30px; right: 20px; z-index: 1000;
-            background: white; color: #333; border: none; border-radius: 50%;
-            width: 55px; height: 55px; font-size: 22px; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            display: flex; justify-content: center; align-items: center; transition: 0.3s;
+            position: absolute; bottom: 24px; right: 24px; z-index: 1000;
+            background: white; color: #0f172a; border: none; border-radius: 50%;
+            width: 52px; height: 52px; font-size: 20px; cursor: pointer;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            display: flex; justify-content: center; align-items: center; transition: 0.2s;
         }
-        .locate-btn:hover { color: #0078A8; background: #f0f0f0; }
-
-        /* Loading Spinner */
-        #loader { display: none; text-align: center; margin-top: 10px; color: #0078A8; }
+        .locate-btn:hover { transform: scale(1.05); color: #0284c7; }
     </style>
 </head>
 <body>
 
-    <!-- Panel Laluan -->
+    <!-- Panel Kawalan Navigasi -->
     <div class="routing-panel">
-        <div class="input-group">
-            <i class="fas fa-circle dot-start"></i>
-            <input type="text" id="startInput" placeholder="Lokasi Mula (A)">
+        <div class="mode-selector">
+            <button class="mode-btn active" onclick="setMode('driving', this)"><i class="fas fa-car"></i> Pandu</button>
+            <button class="mode-btn" onclick="setMode('walking', this)"><i class="fas fa-walking"></i> Jalan</button>
+            <button class="mode-btn" onclick="setMode('bike', this)"><i class="fas fa-bicycle"></i> Basikal</button>
         </div>
-        <div class="input-group">
-            <i class="fas fa-map-marker-alt dot-end"></i>
-            <input type="text" id="endInput" placeholder="Destinasi (B)">
+
+        <div class="input-wrapper">
+            <div class="input-group">
+                <i class="fas fa-circle dot-start"></i>
+                <input type="text" id="startInput" placeholder="Pilih Lokasi Mula..." autocomplete="off">
+            </div>
+            <div id="startSuggestions" class="suggestions-list"></div>
         </div>
-        <button onclick="calculateRoute()">
-            <i class="fas fa-route"></i> Dapatkan Laluan
+
+        <div class="input-wrapper">
+            <div class="input-group">
+                <i class="fas fa-map-marker-alt dot-end"></i>
+                <input type="text" id="endInput" placeholder="Pilih Destinasi..." autocomplete="off">
+            </div>
+            <div id="endSuggestions" class="suggestions-list"></div>
+        </div>
+
+        <button class="btn-primary" onclick="calculateRoute()">
+            <i class="fas fa-directions"></i> Cari Laluan
         </button>
-        <div id="loader"><i class="fas fa-spinner fa-spin"></i> Mencari jalan...</div>
+
+        <div id="loader"><i class="fas fa-spinner fa-spin"></i> Mencari jalan optimum...</div>
         <div id="route-info"></div>
+
+        <button id="startNavBtn" class="btn-success" onclick="startNavigation()">
+            <i class="fas fa-location-arrow"></i> Mula Perjalanan
+        </button>
     </div>
 
-    <!-- Peta -->
+    <!-- Container Peta -->
     <div id="map"></div>
 
-    <!-- Butang GPS -->
-    <button class="locate-btn" onclick="locateUser()" title="Cari Lokasi Saya">
+    <!-- Butang Lokasi GPS Saya -->
+    <button class="locate-btn" onclick="locateUser()" title="Dapatkan Lokasi Saya">
         <i class="fas fa-crosshairs"></i>
     </button>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
     <script>
-        var map = L.map('map').setView([3.1390, 101.6869], 12);
+        var map = L.map('map', { zoomControl: false }).setView([3.1390, 101.6869], 13);
+        L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19, attribution: '&copy; OpenStreetMap',
-            referrerPolicy: 'strict-origin-when-cross-origin'
+            maxZoom: 19, attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        // Pembolehubah global
-        var startMarker, endMarker, routeLine;
+        var startMarker, endMarker, routeLine, watchId;
         var startCoords = null, endCoords = null;
+        var currentMode = 'driving';
 
-        // 1. Fungsi Tukar Teks Alamat kepada Koordinat (Geocoding)
-        async function getCoordinates(address) {
-            var url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
-            var response = await fetch(url, { headers: { 'User-Agent': 'WuzMap/1.0' } });
-            var data = await response.json();
-            if (data.length > 0) {
-                return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), name: data[0].display_name };
-            }
-            return null;
+        // 1. Debounce Function untuk Hadkan API Call
+        function debounce(func, delay = 350) {
+            let timeout;
+            return (...args) => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => { func.apply(this, args); }, delay);
+            };
         }
 
-        // 2. Fungsi Utama Laluan
-        async function calculateRoute() {
-            var startTxt = document.getElementById('startInput').value;
-            var endTxt = document.getElementById('endInput').value;
+        // 2. Autocomplete menggunakan Photon API (Lebih Pantas & Percuma)
+        async function fetchSuggestions(query, containerId, coordsTarget) {
+            if (query.length < 3) {
+                document.getElementById(containerId).style.display = 'none';
+                return;
+            }
+            try {
+                var response = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5`);
+                var data = await response.json();
+                var container = document.getElementById(containerId);
+                container.innerHTML = '';
 
-            if (!startTxt || !endTxt) { alert("Sila isi kedua-dua lokasi mula dan destinasi."); return; }
+                if (data.features.length > 0) {
+                    data.features.forEach(feature => {
+                        var props = feature.properties;
+                        var name = props.name || props.street || 'Lokasi Tanpa Nama';
+                        var city = props.city || props.state || props.country || '';
+                        var label = `${name} ${city ? '(' + city + ')' : ''}`;
+                        var lon = feature.geometry.coordinates[0];
+                        var lat = feature.geometry.coordinates[1];
+
+                        var div = document.createElement('div');
+                        div.className = 'suggestion-item';
+                        div.innerHTML = `<i class="fas fa-map-marker-alt"></i> <span>${label}</span>`;
+                        div.onclick = () => {
+                            if (coordsTarget === 'start') {
+                                document.getElementById('startInput').value = label;
+                                startCoords = { lat, lon };
+                            } else {
+                                document.getElementById('endInput').value = label;
+                                endCoords = { lat, lon };
+                            }
+                            container.style.display = 'none';
+                        };
+                        container.appendChild(div);
+                    });
+                    container.style.display = 'block';
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        // Event Listener Autocomplete
+        document.getElementById('startInput').addEventListener('input', debounce((e) => {
+            fetchSuggestions(e.target.value, 'startSuggestions', 'start');
+        }));
+        document.getElementById('endInput').addEventListener('input', debounce((e) => {
+            fetchSuggestions(e.target.value, 'endSuggestions', 'end');
+        }));
+
+        // 3. Pilihan Mod Pengangkutan
+        function setMode(mode, element) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            element.classList.add('active');
+            if (startCoords && endCoords) calculateRoute();
+        }
+
+        // 4. Kira Laluan OSRM
+        async function calculateRoute() {
+            if (!startCoords || !endCoords) {
+                alert("Sila pilih lokasi dari cadangan carian atau tekan ikon GPS.");
+                return;
+            }
 
             document.getElementById('loader').style.display = 'block';
             document.getElementById('route-info').style.display = 'none';
+            document.getElementById('startNavBtn').style.display = 'none';
+
+            if (startMarker) map.removeLayer(startMarker);
+            if (endMarker) map.removeLayer(endMarker);
+            if (routeLine) map.removeLayer(routeLine);
+
+            startMarker = L.marker([startCoords.lat, startCoords.lon]).addTo(map).bindPopup("Lokasi Mula");
+            endMarker = L.marker([endCoords.lat, endCoords.lon]).addTo(map).bindPopup("Destinasi");
+
+            var osrmUrl = `https://router.project-osrm.org/route/v1/${currentMode}/${startCoords.lon},${startCoords.lat};${endCoords.lon},${endCoords.lat}?overview=full&geometries=geojson`;
 
             try {
-                // Dapatkan koordinat (A dan B)
-                var startLoc = await getCoordinates(startTxt);
-                var endLoc = await getCoordinates(endTxt);
-
-                if (!startLoc || !endLoc) { alert("Lokasi tidak dijumpai. Sila cuba nama yang lebih spesifik."); return; }
-
-                // Padam laluan lama jika ada
-                if (startMarker) map.removeLayer(startMarker);
-                if (endMarker) map.removeLayer(endMarker);
-                if (routeLine) map.removeLayer(routeLine);
-
-                // Letak penanda A dan B
-                startMarker = L.marker([startLoc.lat, startLoc.lon]).addTo(map).bindPopup("Mula: " + startTxt);
-                endMarker = L.marker([endLoc.lat, endLoc.lon]).addTo(map).bindPopup("Destinasi: " + endTxt);
-
-                // Panggil API OSRM untuk laluan
-                var osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startLoc.lon},${startLoc.lat};${endLoc.lon},${endLoc.lat}?overview=full&geometries=geojson`;
-                var routeResponse = await fetch(osrmUrl);
-                var routeData = await routeResponse.json();
+                var response = await fetch(osrmUrl);
+                var routeData = await response.json();
 
                 if (routeData.code === 'Ok' && routeData.routes.length > 0) {
                     var route = routeData.routes[0];
-                    
-                    // Ambil jarak & masa
                     var distanceKm = (route.distance / 1000).toFixed(1);
                     var durationMin = Math.round(route.duration / 60);
 
-                    // Papar info
                     document.getElementById('route-info').innerHTML = 
-                        `Jarak: <b>${distanceKm} km</b><br>Masa: <b>~${durationMin} minit</b>`;
+                        `Jarak: <b>${distanceKm} km</b> | Masa: <b>~${durationMin} minit</b>`;
                     document.getElementById('route-info').style.display = 'block';
+                    document.getElementById('startNavBtn').style.display = 'flex';
 
-                    // Lukis garisan laluan
                     var coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
-                    routeLine = L.polyline(coords, { color: '#0078A8', weight: 6, opacity: 0.8 }).addTo(map);
-
-                    // Zoom peta untuk muatkan laluan
-                    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
-                } else {
-                    alert("Gagal mengira laluan antara dua lokasi ini.");
+                    routeLine = L.polyline(coords, { color: '#0284c7', weight: 6, opacity: 0.9 }).addTo(map);
+                    map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
                 }
-
             } catch (error) {
-                console.error(error);
-                alert("Ralat sambungan ke pelayan laluan.");
+                alert("Gagal menghubungi pelayan laluan.");
             } finally {
                 document.getElementById('loader').style.display = 'none';
             }
         }
 
-        // 3. Fungsi Lokasi Semasa (GPS)
-        function locateUser() {
-            if (!navigator.geolocation) { alert("Pelayar tidak menyokong GPS."); return; }
+        // 5. Mod "Mula Perjalanan" (Navigasi Langsung)
+        function startNavigation() {
+            if (!navigator.geolocation) return;
+            alert("Mod Navigasi Diaktifkan! Peta akan mengikut pergerakan anda.");
             
-            navigator.geolocation.getCurrentPosition(function(position) {
-                var lat = position.coords.latitude;
-                var lon = position.coords.longitude;
-                map.flyTo([lat, lon], 16);
+            watchId = navigator.geolocation.watchPosition((pos) => {
+                var lat = pos.coords.latitude;
+                var lon = pos.coords.longitude;
                 
-                // Masukkan koordinat ke dalam input mula secara automatik
-                document.getElementById('startInput').value = `${lat}, ${lon}`;
+                if (startMarker) startMarker.setLatLng([lat, lon]);
+                map.flyTo([lat, lon], 17, { animate: true, duration: 1 });
+            }, (err) => console.error(err), { enableHighAccuracy: true });
+        }
+
+        // 6. Dapatkan Lokasi GPS Semasa
+        function locateUser() {
+            if (!navigator.geolocation) return;
+            navigator.geolocation.getCurrentPosition((pos) => {
+                var lat = pos.coords.latitude;
+                var lon = pos.coords.longitude;
+                startCoords = { lat, lon };
+                document.getElementById('startInput').value = `${lat.toFixed(4)}, ${lon.toFixed(4)} (Lokasi Saya)`;
+                map.flyTo([lat, lon], 15);
                 
-                L.marker([lat, lon]).addTo(map).bindPopup("Anda di sini").openPopup();
-            }, function() {
-                alert("Gagal mendapat lokasi. Benarkan akses GPS.");
+                if (startMarker) map.removeLayer(startMarker);
+                startMarker = L.marker([lat, lon]).addTo(map).bindPopup("Anda di sini").openPopup();
             });
         }
+
+        // Tutup senarai cadangan jika pengguna tekan di luar panel
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.input-wrapper')) {
+                document.querySelectorAll('.suggestions-list').forEach(el => el.style.display = 'none');
+            }
+        });
     </script>
 </body>
 </html>
