@@ -3,106 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WuzMap - Navigasi Modern</title>
+    <title>WuzMap v3.0 - Navigasi 3D & Carian Pintar</title>
     
-    <!-- Leaflet CSS & Fonts -->
+    <!-- Leaflet CSS & FontAwesome -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
-        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { margin: 0; padding: 0; overflow: hidden; background: #f8fafc; }
+        :root {
+            --bg-panel: rgba(255, 255, 255, 0.92);
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --border-color: #e2e8f0;
+            --primary-color: #0284c7;
+            --primary-hover: #0369a1;
+            --input-bg: #f1f5f9;
+        }
+
+        body.dark-mode {
+            --bg-panel: rgba(15, 23, 42, 0.92);
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --border-color: #334155;
+            --primary-color: #38bdf8;
+            --primary-hover: #0284c7;
+            --input-bg: #0f172a;
+        }
+
+        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; transition: background-color 0.2s, color 0.2s; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #0f172a; }
         #map { height: 100vh; width: 100%; z-index: 1; }
 
-        /* Floating Modern Glassmorphism Panel */
+        /* General Floating Panel */
+        .glass-panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(14px);
+            border-radius: 20px;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        /* Top Global Search Bar */
+        .top-search-container {
+            position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; width: calc(100% - 32px); max-width: 500px;
+        }
+        .top-search-box {
+            display: flex; align-items: center; padding: 6px 16px;
+            gap: 10px; background: var(--bg-panel); border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2); border: 1px solid var(--border-color);
+        }
+        .top-search-box input {
+            flex: 1; padding: 10px 0; border: none; background: transparent;
+            font-size: 15px; outline: none; color: var(--text-main); font-weight: 500;
+        }
+
+        /* Left Routing Panel */
         .routing-panel {
-            position: absolute; top: 16px; left: 16px; z-index: 1000;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(12px);
-            padding: 18px; border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-            width: calc(100% - 32px); max-width: 360px;
-            border: 1px solid rgba(255, 255, 255, 0.4);
-            transition: all 0.3s ease;
+            position: absolute; top: 80px; left: 16px; z-index: 1000;
+            padding: 18px; width: calc(100% - 32px); max-width: 360px;
+            max-height: calc(100vh - 100px); overflow-y: auto;
         }
 
         .input-wrapper { position: relative; margin-bottom: 10px; }
-        .input-group { display: flex; align-items: center; background: #f1f5f9; border-radius: 12px; padding: 4px 12px; }
+        .input-group { display: flex; align-items: center; background: var(--input-bg); border-radius: 12px; padding: 4px 12px; }
         .input-group i { font-size: 14px; margin-right: 10px; }
         .dot-start { color: #10b981; }
         .dot-end { color: #ef4444; }
 
         .routing-panel input {
             width: 100%; padding: 10px 0; border: none; background: transparent;
-            font-size: 14px; outline: none; color: #1e293b; font-weight: 500;
+            font-size: 14px; outline: none; color: var(--text-main); font-weight: 500;
         }
 
-        /* Autocomplete Dropdown List */
+        /* Autocomplete Suggestions */
         .suggestions-list {
             position: absolute; top: 100%; left: 0; right: 0;
-            background: white; border-radius: 12px; margin-top: 4px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            max-height: 200px; overflow-y: auto; z-index: 1001; display: none;
-            border: 1px solid #e2e8f0;
+            background: var(--bg-card); border-radius: 12px; margin-top: 4px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); max-height: 200px;
+            overflow-y: auto; z-index: 1001; display: none; border: 1px solid var(--border-color);
         }
         .suggestion-item {
-            padding: 10px 14px; font-size: 13px; cursor: pointer; color: #334155;
-            display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f1f5f9;
+            padding: 10px 14px; font-size: 13px; cursor: pointer; color: var(--text-main);
+            display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border-color);
         }
-        .suggestion-item:hover { background: #f8fafc; color: #0284c7; }
+        .suggestion-item:hover { background: var(--input-bg); color: var(--primary-color); }
 
-        /* Mode Pengangkutan Selector */
+        /* Mode Selector */
         .mode-selector { display: flex; gap: 8px; margin-bottom: 12px; }
         .mode-btn {
-            flex: 1; padding: 8px; border: 1px solid #e2e8f0; background: white;
-            border-radius: 10px; cursor: pointer; font-size: 13px; color: #64748b;
-            display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;
+            flex: 1; padding: 8px; border: 1px solid var(--border-color); background: var(--bg-card);
+            border-radius: 10px; cursor: pointer; font-size: 13px; color: var(--text-sub);
+            display: flex; align-items: center; justify-content: center; gap: 6px;
         }
-        .mode-btn.active { background: #0284c7; color: white; border-color: #0284c7; font-weight: 600; }
+        .mode-btn.active { background: var(--primary-color); color: white; border-color: var(--primary-color); font-weight: 600; }
+
+        /* Quick POI Category Pills */
+        .poi-pills { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 10px; }
+        .poi-pill {
+            padding: 6px 12px; background: var(--input-bg); border-radius: 20px; font-size: 12px;
+            white-space: nowrap; cursor: pointer; color: var(--text-main); border: 1px solid var(--border-color);
+        }
+        .poi-pill:hover { background: var(--primary-color); color: white; }
 
         /* Action Buttons */
         .btn-primary {
-            width: 100%; padding: 12px; background: #0284c7; color: white;
+            width: 100%; padding: 12px; background: var(--primary-color); color: white;
             border: none; border-radius: 12px; font-size: 14px; font-weight: 600;
-            cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
         }
-        .btn-primary:hover { background: #0369a1; }
-
         .btn-success {
             width: 100%; padding: 12px; background: #10b981; color: white;
             border: none; border-radius: 12px; font-size: 14px; font-weight: 600;
             cursor: pointer; margin-top: 8px; display: none; align-items: center; justify-content: center; gap: 8px;
         }
-        .btn-success:hover { background: #059669; }
 
-        /* Information & Status Card */
-        #route-info {
-            display: none; margin-top: 12px; padding: 12px;
-            background: #f0f9ff; border-radius: 12px; border: 1px solid #bae6fd;
-            text-align: center; color: #0369a1; font-size: 14px;
-        }
-        #loader { display: none; text-align: center; margin-top: 10px; color: #0284c7; font-size: 13px; }
-
-        /* Floating GPS Floating Action Button */
-        .locate-btn {
+        /* Floating Controls Right Side */
+        .floating-controls {
             position: absolute; bottom: 24px; right: 24px; z-index: 1000;
-            background: white; color: #0f172a; border: none; border-radius: 50%;
-            width: 52px; height: 52px; font-size: 20px; cursor: pointer;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-            display: flex; justify-content: center; align-items: center; transition: 0.2s;
+            display: flex; flex-direction: column; gap: 10px;
         }
-        .locate-btn:hover { transform: scale(1.05); color: #0284c7; }
+        .ctrl-btn {
+            background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color);
+            border-radius: 50%; width: 50px; height: 50px; font-size: 18px; cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15); display: flex; justify-content: center; align-items: center;
+        }
+        .ctrl-btn:hover { color: var(--primary-color); transform: scale(1.05); }
+
+        #route-info {
+            display: none; margin-top: 12px; padding: 12px; background: var(--input-bg);
+            border-radius: 12px; border: 1px solid var(--border-color); text-align: center; color: var(--primary-color); font-size: 14px;
+        }
+        #loader { display: none; text-align: center; margin-top: 10px; color: var(--primary-color); font-size: 13px; }
+
+        /* Custom Popup Style */
+        .leaflet-popup-content-wrapper { background: var(--bg-card); color: var(--text-main); border-radius: 14px; padding: 4px; }
+        .popup-info { text-align: center; font-family: 'Plus Jakarta Sans', sans-serif; }
+        .popup-info h4 { margin: 4px 0; color: var(--text-main); font-size: 15px; }
+        .popup-info p { margin: 2px 0 10px; color: var(--text-sub); font-size: 13px; }
+        .popup-btn {
+            padding: 8px 14px; background: #10b981; color: white; border: none;
+            border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Panel Kawalan Navigasi -->
-    <div class="routing-panel">
+    <!-- Top Global Search Bar (View Location Only) -->
+    <div class="top-search-container">
+        <div class="top-search-box glass-panel">
+            <i class="fas fa-search" style="color: var(--text-sub);"></i>
+            <input type="text" id="globalSearch" placeholder="Cari mana-mana lokasi untuk diterokai..." autocomplete="off">
+            <i class="fas fa-times" id="clearGlobalSearch" style="cursor: pointer; color: var(--text-sub); display: none;"></i>
+        </div>
+        <div id="globalSuggestions" class="suggestions-list"></div>
+    </div>
+
+    <!-- Left Navigation & Route Panel -->
+    <div class="routing-panel glass-panel">
         <div class="mode-selector">
             <button class="mode-btn active" onclick="setMode('driving', this)"><i class="fas fa-car"></i> Pandu</button>
             <button class="mode-btn" onclick="setMode('walking', this)"><i class="fas fa-walking"></i> Jalan</button>
             <button class="mode-btn" onclick="setMode('bike', this)"><i class="fas fa-bicycle"></i> Basikal</button>
+        </div>
+
+        <!-- Quick POI Search Pills -->
+        <div class="poi-pills">
+            <div class="poi-pill" onclick="searchPOI('Petronas Gas Station')"><i class="fas fa-gas-pump"></i> Minyak</div>
+            <div class="poi-pill" onclick="searchPOI('Restoran')"><i class="fas fa-utensils"></i> Makanan</div>
+            <div class="poi-pill" onclick="searchPOI('Hospital')"><i class="fas fa-hospital"></i> Hospital</div>
+            <div class="poi-pill" onclick="searchPOI('ATM Bank')"><i class="fas fa-money-bill-wave"></i> ATM</div>
         </div>
 
         <div class="input-wrapper">
@@ -125,36 +199,66 @@
             <i class="fas fa-directions"></i> Cari Laluan
         </button>
 
-        <div id="loader"><i class="fas fa-spinner fa-spin"></i> Mencari jalan optimum...</div>
+        <div id="loader"><i class="fas fa-spinner fa-spin"></i> Memproses laluan...</div>
         <div id="route-info"></div>
 
         <button id="startNavBtn" class="btn-success" onclick="startNavigation()">
-            <i class="fas fa-location-arrow"></i> Mula Perjalanan
+            <i class="fas fa-location-arrow"></i> Mula Navigasi Live
         </button>
     </div>
 
-    <!-- Container Peta -->
+    <!-- Map Canvas Container -->
     <div id="map"></div>
 
-    <!-- Butang Lokasi GPS Saya -->
-    <button class="locate-btn" onclick="locateUser()" title="Dapatkan Lokasi Saya">
-        <i class="fas fa-crosshairs"></i>
-    </button>
+    <!-- Floating Right Controls (Dark Mode, 3D, GPS) -->
+    <div class="floating-controls">
+        <button class="ctrl-btn" onclick="toggleDarkMode()" title="Tukar Mod Gelap/Terang">
+            <i class="fas fa-moon" id="darkModeIcon"></i>
+        </button>
+        <button class="ctrl-btn" onclick="toggle3DMode()" title="Tukar Pandangan 3D/Satelit">
+            <i class="fas fa-cube" id="icon3D"></i>
+        </button>
+        <button class="ctrl-btn" onclick="locateUser()" title="Lokasi Saya">
+            <i class="fas fa-crosshairs"></i>
+        </button>
+    </div>
 
+    <!-- Leaflet JS & Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // Initialize Map
         var map = L.map('map', { zoomControl: false }).setView([3.1390, 101.6869], 13);
-        L.control.zoom({ position: 'bottomleft' }).addTo(map);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19, attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
+        // Tile Layers (Light, Dark, Satellite/3D)
+        var lightTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: 'CartoDB' });
+        var darkTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: 'CartoDB' });
+        var satelliteTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18, attribution: 'Esri World Imagery' });
 
-        var startMarker, endMarker, routeLine, watchId;
-        var startCoords = null, endCoords = null;
-        var currentMode = 'driving';
+        var currentTile = lightTile;
+        currentTile.addTo(map);
 
-        // 1. Debounce Function untuk Hadkan API Call
+        // Global Variables
+        var startMarker, endMarker, viewMarker, routeLine;
+        var startCoords = null, endCoords = null, currentPos = null;
+        var currentMode = 'driving', isDarkMode = false, is3D = false;
+
+        // Auto-detect & set user's initial GPS location
+        locateUser(false);
+
+        // Helper: Calculate Haversine Distance between 2 points (in km)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            var R = 6371; // km
+            var dLat = (lat2 - lat1) * Math.PI / 180;
+            var dLon = (lon2 - lon1) * Math.PI / 180;
+            var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return (R * c).toFixed(2);
+        }
+
+        // Debounce Helper
         function debounce(func, delay = 350) {
             let timeout;
             return (...args) => {
@@ -163,8 +267,8 @@
             };
         }
 
-        // 2. Autocomplete menggunakan Photon API (Lebih Pantas & Percuma)
-        async function fetchSuggestions(query, containerId, coordsTarget) {
+        // Search Locations using Photon API
+        async function fetchSuggestions(query, containerId, onSelectCallback) {
             if (query.length < 3) {
                 document.getElementById(containerId).style.display = 'none';
                 return;
@@ -178,7 +282,7 @@
                 if (data.features.length > 0) {
                     data.features.forEach(feature => {
                         var props = feature.properties;
-                        var name = props.name || props.street || 'Lokasi Tanpa Nama';
+                        var name = props.name || props.street || 'Lokasi';
                         var city = props.city || props.state || props.country || '';
                         var label = `${name} ${city ? '(' + city + ')' : ''}`;
                         var lon = feature.geometry.coordinates[0];
@@ -188,13 +292,7 @@
                         div.className = 'suggestion-item';
                         div.innerHTML = `<i class="fas fa-map-marker-alt"></i> <span>${label}</span>`;
                         div.onclick = () => {
-                            if (coordsTarget === 'start') {
-                                document.getElementById('startInput').value = label;
-                                startCoords = { lat, lon };
-                            } else {
-                                document.getElementById('endInput').value = label;
-                                endCoords = { lat, lon };
-                            }
+                            onSelectCallback(label, lat, lon);
                             container.style.display = 'none';
                         };
                         container.appendChild(div);
@@ -204,99 +302,191 @@
             } catch (err) { console.error(err); }
         }
 
-        // Event Listener Autocomplete
-        document.getElementById('startInput').addEventListener('input', debounce((e) => {
-            fetchSuggestions(e.target.value, 'startSuggestions', 'start');
-        }));
-        document.getElementById('endInput').addEventListener('input', debounce((e) => {
-            fetchSuggestions(e.target.value, 'endSuggestions', 'end');
+        // 1. Top Search Bar Listener (View Location Only)
+        document.getElementById('globalSearch').addEventListener('input', debounce((e) => {
+            var val = e.target.value;
+            document.getElementById('clearGlobalSearch').style.display = val ? 'block' : 'none';
+            fetchSuggestions(val, 'globalSuggestions', (label, lat, lon) => {
+                document.getElementById('globalSearch').value = label;
+                viewLocation(label, lat, lon);
+            });
         }));
 
-        // 3. Pilihan Mod Pengangkutan
-        function setMode(mode, element) {
+        document.getElementById('clearGlobalSearch').onclick = () => {
+            document.getElementById('globalSearch').value = '';
+            document.getElementById('clearGlobalSearch').style.display = 'none';
+            if (viewMarker) map.removeLayer(viewMarker);
+        };
+
+        // Function: View Location on Map with Info Card & Distance
+        function viewLocation(name, lat, lon) {
+            if (viewMarker) map.removeLayer(viewMarker);
+            
+            map.flyTo([lat, lon], 16, { animate: true, duration: 1.5 });
+
+            var distText = "Sila hidupkan GPS untuk info jarak";
+            if (currentPos) {
+                var km = calculateDistance(currentPos.lat, currentPos.lon, lat, lon);
+                distText = `Jarak dari lokasi anda: <b>${km} km</b>`;
+            }
+
+            var popupContent = `
+                <div class="popup-info">
+                    <h4>${name}</h4>
+                    <p>${distText}</p>
+                    <button class="popup-btn" onclick="setDestinationFromPopup('${name.replace(/'/g, "\\'")}', ${lat}, ${lon})">
+                        <i class="fas fa-car"></i> Pandu Ke Sini
+                    </button>
+                </div>
+            `;
+
+            viewMarker = L.marker([lat, lon]).addTo(map).bindPopup(popupContent).openPopup();
+        }
+
+        // Set destination directly from view location popup
+        function setDestinationFromPopup(name, lat, lon) {
+            endCoords = { lat, lon };
+            document.getElementById('endInput').value = name;
+            
+            // Auto-set start location as current GPS if available
+            if (currentPos && !startCoords) {
+                startCoords = { lat: currentPos.lat, lon: currentPos.lon };
+                document.getElementById('startInput').value = "Lokasi Saya (GPS)";
+            }
+            
+            calculateRoute();
+        }
+
+        // Quick POI Search Pills Handler
+        function searchPOI(category) {
+            if (!currentPos) { alert("Sila benarkan akses GPS untuk carian berdekatan."); return; }
+            document.getElementById('globalSearch').value = category + " berdekatan";
+            fetchSuggestions(`${category} near ${currentPos.lat},${currentPos.lon}`, 'globalSuggestions', (label, lat, lon) => {
+                viewLocation(label, lat, lon);
+            });
+        }
+
+        // 2. Routing Input Listeners
+        document.getElementById('startInput').addEventListener('input', debounce((e) => {
+            fetchSuggestions(e.target.value, 'startSuggestions', (label, lat, lon) => {
+                document.getElementById('startInput').value = label;
+                startCoords = { lat, lon };
+            });
+        }));
+
+        document.getElementById('endInput').addEventListener('input', debounce((e) => {
+            fetchSuggestions(e.target.value, 'endSuggestions', (label, lat, lon) => {
+                document.getElementById('endInput').value = label;
+                endCoords = { lat, lon };
+            });
+        }));
+
+        // 3. Mode Pengangkutan Selector
+        function setMode(mode, el) {
             currentMode = mode;
             document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-            element.classList.add('active');
+            el.classList.add('active');
             if (startCoords && endCoords) calculateRoute();
         }
 
-        // 4. Kira Laluan OSRM
+        // 4. Calculate OSRM Route
         async function calculateRoute() {
             if (!startCoords || !endCoords) {
-                alert("Sila pilih lokasi dari cadangan carian atau tekan ikon GPS.");
+                alert("Sila tetapkan kedua-dua Lokasi Mula dan Destinasi.");
                 return;
             }
 
             document.getElementById('loader').style.display = 'block';
             document.getElementById('route-info').style.display = 'none';
-            document.getElementById('startNavBtn').style.display = 'none';
 
             if (startMarker) map.removeLayer(startMarker);
             if (endMarker) map.removeLayer(endMarker);
             if (routeLine) map.removeLayer(routeLine);
 
-            startMarker = L.marker([startCoords.lat, startCoords.lon]).addTo(map).bindPopup("Lokasi Mula");
+            startMarker = L.marker([startCoords.lat, startCoords.lon]).addTo(map).bindPopup("Mula");
             endMarker = L.marker([endCoords.lat, endCoords.lon]).addTo(map).bindPopup("Destinasi");
 
             var osrmUrl = `https://router.project-osrm.org/route/v1/${currentMode}/${startCoords.lon},${startCoords.lat};${endCoords.lon},${endCoords.lat}?overview=full&geometries=geojson`;
 
             try {
-                var response = await fetch(osrmUrl);
-                var routeData = await response.json();
+                var res = await fetch(osrmUrl);
+                var data = await res.json();
 
-                if (routeData.code === 'Ok' && routeData.routes.length > 0) {
-                    var route = routeData.routes[0];
-                    var distanceKm = (route.distance / 1000).toFixed(1);
-                    var durationMin = Math.round(route.duration / 60);
+                if (data.code === 'Ok' && data.routes.length > 0) {
+                    var route = data.routes[0];
+                    var dist = (route.distance / 1000).toFixed(1);
+                    var dur = Math.round(route.duration / 60);
 
-                    document.getElementById('route-info').innerHTML = 
-                        `Jarak: <b>${distanceKm} km</b> | Masa: <b>~${durationMin} minit</b>`;
+                    document.getElementById('route-info').innerHTML = `Jarak: <b>${dist} km</b> | Anggaran Masa: <b>~${dur} minit</b>`;
                     document.getElementById('route-info').style.display = 'block';
                     document.getElementById('startNavBtn').style.display = 'flex';
 
                     var coords = route.geometry.coordinates.map(c => [c[1], c[0]]);
-                    routeLine = L.polyline(coords, { color: '#0284c7', weight: 6, opacity: 0.9 }).addTo(map);
+                    routeLine = L.polyline(coords, { color: 'var(--primary-color)', weight: 6, opacity: 0.9 }).addTo(map);
                     map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
                 }
-            } catch (error) {
-                alert("Gagal menghubungi pelayan laluan.");
+            } catch (err) {
+                alert("Ralat sambungan ke pelayan navigasi.");
             } finally {
                 document.getElementById('loader').style.display = 'none';
             }
         }
 
-        // 5. Mod "Mula Perjalanan" (Navigasi Langsung)
+        // 5. Live Navigation Mode
         function startNavigation() {
             if (!navigator.geolocation) return;
-            alert("Mod Navigasi Diaktifkan! Peta akan mengikut pergerakan anda.");
-            
-            watchId = navigator.geolocation.watchPosition((pos) => {
+            alert("Mod Navigasi Live Aktif! Peta akan mengikuti pergerakan anda.");
+            navigator.geolocation.watchPosition((pos) => {
                 var lat = pos.coords.latitude;
                 var lon = pos.coords.longitude;
-                
+                currentPos = { lat, lon };
                 if (startMarker) startMarker.setLatLng([lat, lon]);
-                map.flyTo([lat, lon], 17, { animate: true, duration: 1 });
+                map.flyTo([lat, lon], 17, { animate: true });
             }, (err) => console.error(err), { enableHighAccuracy: true });
         }
 
-        // 6. Dapatkan Lokasi GPS Semasa
-        function locateUser() {
+        // 6. Get User Location (GPS)
+        function locateUser(fly = true) {
             if (!navigator.geolocation) return;
             navigator.geolocation.getCurrentPosition((pos) => {
                 var lat = pos.coords.latitude;
                 var lon = pos.coords.longitude;
-                startCoords = { lat, lon };
-                document.getElementById('startInput').value = `${lat.toFixed(4)}, ${lon.toFixed(4)} (Lokasi Saya)`;
-                map.flyTo([lat, lon], 15);
-                
-                if (startMarker) map.removeLayer(startMarker);
-                startMarker = L.marker([lat, lon]).addTo(map).bindPopup("Anda di sini").openPopup();
+                currentPos = { lat, lon };
+                if (!startCoords) {
+                    startCoords = { lat, lon };
+                    document.getElementById('startInput').value = "Lokasi Saya (GPS)";
+                }
+                if (fly) {
+                    map.flyTo([lat, lon], 15);
+                    L.marker([lat, lon]).addTo(map).bindPopup("Anda di sini").openPopup();
+                }
             });
         }
 
-        // Tutup senarai cadangan jika pengguna tekan di luar panel
+        // 7. Dark Mode & 3D Toggle
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode', isDarkMode);
+            document.getElementById('darkModeIcon').className = isDarkMode ? 'fas fa-sun' : 'fas fa-moon';
+            
+            if (!is3D) {
+                map.removeLayer(currentTile);
+                currentTile = isDarkMode ? darkTile : lightTile;
+                currentTile.addTo(map);
+            }
+        }
+
+        function toggle3DMode() {
+            is3D = !is3D;
+            document.getElementById('icon3D').style.color = is3D ? '#10b981' : 'inherit';
+            map.removeLayer(currentTile);
+            currentTile = is3D ? satelliteTile : (isDarkMode ? darkTile : lightTile);
+            currentTile.addTo(map);
+        }
+
+        // Close suggestions dropdowns when clicking outside
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.input-wrapper')) {
+            if (!e.target.closest('.input-wrapper') && !e.target.closest('.top-search-container')) {
                 document.querySelectorAll('.suggestions-list').forEach(el => el.style.display = 'none');
             }
         });
